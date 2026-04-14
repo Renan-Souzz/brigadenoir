@@ -47,13 +47,16 @@ const VIEWS: Record<TabId, React.ComponentType> = {
 };
 
 /** Navigation items shown in the mobile bottom bar. */
-const MOBILE_NAV_ITEMS: Array<{ id: TabId; label: string; icon: string }> = [
-  { id: 'dashboard',    label: 'Início',   icon: 'LayoutDashboard' },
-  { id: 'checklist',   label: 'Checklist', icon: 'ClipboardCheck'  },
-  { id: 'insumos',     label: 'Estoque',   icon: 'Package'         },
-  { id: 'fichas',      label: 'Fichas',    icon: 'BookOpen'        },
-  { id: 'menu',        label: 'Menu',      icon: 'UtensilsCrossed' },
-  { id: 'configuracoes', label: 'Ajustes',  icon: 'Settings'        },
+const MOBILE_NAV_ITEMS: Array<{ id: TabId; label: string; icon: string; minRole?: string[] }> = [
+  { id: 'dashboard',    label: 'Início',    icon: 'LayoutDashboard' },
+  { id: 'checklist',    label: 'Checklist', icon: 'ClipboardCheck'  },
+  { id: 'insumos',      label: 'Estoque',   icon: 'Package'         },
+  { id: 'fichas',       label: 'Fichas',    icon: 'BookOpen'        },
+  { id: 'almoxarifado', label: 'Almoxa',    icon: 'Warehouse',      minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'] },
+  { id: 'brigada',      label: 'Brigada',   icon: 'Users',          minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef', 'chef_de_partie'] },
+  { id: 'menu',         label: 'Menu',      icon: 'UtensilsCrossed' },
+  { id: 'suporte',      label: 'Suporte',   icon: 'HelpCircle'      },
+  { id: 'configuracoes', label: 'Ajustes',   icon: 'Settings'        },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -71,11 +74,11 @@ function MobileNavItem({ active, onClick, icon, label }: MobileNavItemProps) {
     <button
       onClick={onClick}
       className={`flex flex-col items-center justify-center transition-all duration-300 px-1 ${
-        active ? 'text-primary scale-110' : 'text-outline-variant'
+        active ? 'text-primary scale-110' : 'text-outline-variant hover:text-on-surface/80'
       }`}
     >
-      <Icon size={20} />
-      <span className="text-[9px] uppercase tracking-widest font-bold mt-1 leading-none">
+      <Icon size={18} />
+      <span className="text-[8px] uppercase tracking-wider font-bold mt-1 leading-none">
         {label}
       </span>
     </button>
@@ -85,7 +88,7 @@ function MobileNavItem({ active, onClick, icon, label }: MobileNavItemProps) {
 // ─── App Internal ──────────────────────────────────────────────────────────────
 
 function AppContent() {
-  const { session, loading, requirePasswordChange } = useAuth();
+  const { session, loading, profile, requirePasswordChange } = useAuth();
   const { activeTab, setActiveTab } = useNavigation();
 
   if (loading) {
@@ -106,6 +109,11 @@ function AppContent() {
 
   const View = VIEWS[activeTab];
 
+  const filteredNavItems = MOBILE_NAV_ITEMS.filter(item => {
+    if (!item.minRole) return true;
+    return profile?.role && item.minRole.includes(profile.role);
+  });
+
   return (
     <div className="flex min-h-screen bg-surface overflow-x-hidden">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -117,9 +125,9 @@ function AppContent() {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 pb-safe bg-surface/60 backdrop-blur-xl rounded-t-xl shadow-[0px_-10px_30px_rgba(0,0,0,0.5)]">
-        {MOBILE_NAV_ITEMS.map((item) => (
-          <div key={item.id}>
+      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 pb-safe bg-surface/60 backdrop-blur-xl rounded-t-xl shadow-[0px_-10px_30px_rgba(0,0,0,0.5)] border-t border-outline-variant/10">
+        {filteredNavItems.map((item) => (
+          <div key={item.id} className="flex-1">
             <MobileNavItem
               active={activeTab === item.id}
               onClick={() => setActiveTab(item.id)}
