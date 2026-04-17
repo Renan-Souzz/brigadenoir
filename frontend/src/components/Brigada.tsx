@@ -31,7 +31,8 @@ const ROLE_LABELS: Record<AppRole, string> = {
   chef_de_cuisine: 'Chef de Cozinha',
   sous_chef: 'Sous Chef',
   chef_de_partie: 'Chefe de Partida',
-  commis: 'Commis / Cozinheiro'
+  commis: 'Commis / Cozinheiro',
+  ficha_tecnica: 'Gestor de Custos'
 };
 
 const STATION_LABELS: Record<string, string> = {

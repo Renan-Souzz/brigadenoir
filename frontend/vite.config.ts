@@ -8,7 +8,7 @@ export default defineConfig(({mode}) => {
   return {
     plugins: [react(), tailwindcss()],
     define: {
-      // Variáveis sensíveis removidas para evitar vazamento no frontend.
+      'process.env': {},
     },
     resolve: {
       alias: {

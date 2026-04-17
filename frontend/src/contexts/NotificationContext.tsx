@@ -117,8 +117,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       const dayAgo = new Date();
       dayAgo.setHours(dayAgo.getHours() - 24);
 
-      // 1. Fetch stale tasks + risky insumos in parallel (2 queries instead of N)
-      const [staleTasksRes, insumosRes, existingNotifsRes] = await Promise.all([
+      // 1. Fetch stale tasks + risky insumos + low stock dishes in parallel (3 queries instead of N)
+      const [staleTasksRes, insumosRes, dishesRes, existingNotifsRes] = await Promise.all([
         supabase
           .from('tasks')
           .select('id, title, station')
@@ -127,6 +127,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         supabase
           .from('insumos')
           .select('id, name, quantity, unit, station, status, expiry_date'),
+        supabase
+          .from('dishes')
+          .select('id, title, porcoes, praca_responsavel'),
         // 2. Fetch ALL unread notifications at once (1 query instead of N)
         supabase
           .from('notifications')
@@ -156,6 +159,26 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             station: task.station,
             user_id: user.id
           });
+        }
+      }
+
+      // Process dishes risks (86 logic)
+      const allDishes = dishesRes.data || [];
+      for (const dish of allDishes) {
+        if (dish.porcoes < 2) {
+          const isZero = dish.porcoes <= 0;
+          const title = isZero ? `PRATO ESGOTADO (86): ${dish.title}` : `ESTOQUE CRÍTICO: ${dish.title}`;
+          const message = isZero 
+            ? `O prato ${dish.title} acabou no menu principal.` 
+            : `O prato ${dish.title} tem apenas ${dish.porcoes} unidades restantes.`;
+          const type = isZero ? 'error' : 'warning';
+          const station = dish.praca_responsavel || 'Cozinha';
+          
+          const key = `${title}|${station}`;
+          if (!existingSet.has(key)) {
+            existingSet.add(key);
+            newNotifications.push({ title, message, type, station, dish_id: dish.id, user_id: user.id });
+          }
         }
       }
 

@@ -4,7 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type AppRole = 'admin' | 'chef_executivo' | 'chef_de_cuisine' | 'sous_chef' | 'chef_de_partie' | 'commis';
+export type AppRole = 'admin' | 'chef_executivo' | 'chef_de_cuisine' | 'sous_chef' | 'chef_de_partie' | 'commis' | 'ficha_tecnica';
 export type KitchenStation = 'saucier' | 'garde_manger' | 'entremetier' | 'rotisseur' | 'poissonier' | 'patissier';
 
 export interface Profile {

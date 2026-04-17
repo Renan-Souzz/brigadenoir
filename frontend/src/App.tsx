@@ -22,6 +22,7 @@ import MenuPrincipal from './components/MenuPrincipal';
 import Relatorio from './components/Relatorio';
 import Configuracoes from './components/Configuracoes';
 import SuporteTecnico from './components/SuporteTecnico';
+import ModuloFichaTecnica from './components/ModuloFichaTecnica';
 import Sidebar from './components/Sidebar';
 import Auth from './components/Auth';
 import ResetPassword from './components/ResetPassword';
@@ -44,12 +45,13 @@ const VIEWS: Record<TabId, React.ComponentType> = {
   relatorio: Relatorio,
   configuracoes: Configuracoes,
   suporte: SuporteTecnico,
+  mod_ficha_tecnica: ModuloFichaTecnica,
 };
 
 /** Navigation items shown in the mobile bottom bar. */
 const MOBILE_NAV_ITEMS: Array<{ id: TabId; label: string; icon: string; minRole?: string[] }> = [
   { id: 'dashboard',    label: 'Início',    icon: 'LayoutDashboard' },
-  { id: 'checklist',    label: 'Checklist', icon: 'ClipboardCheck'  },
+  { id: 'mod_ficha_tecnica', label: 'Fichas', icon: 'FileSpreadsheet', minRole: ['admin', 'ficha_tecnica', 'chef_executivo'] },
   { id: 'insumos',      label: 'Estoque',   icon: 'Package'         },
   { id: 'fichas',       label: 'Fichas',    icon: 'BookOpen'        },
   { id: 'almoxarifado', label: 'Almoxa',    icon: 'Warehouse',      minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'] },
@@ -90,6 +92,13 @@ function MobileNavItem({ active, onClick, icon, label }: MobileNavItemProps) {
 function AppContent() {
   const { session, loading, profile, requirePasswordChange } = useAuth();
   const { activeTab, setActiveTab } = useNavigation();
+
+  // ─── View Isolation for Ficha Técnica Role ──────────────────────────────────
+  React.useEffect(() => {
+    if (profile?.role === 'ficha_tecnica' && activeTab !== 'mod_ficha_tecnica' && activeTab !== 'configuracoes' && activeTab !== 'suporte') {
+      setActiveTab('mod_ficha_tecnica');
+    }
+  }, [profile, activeTab, setActiveTab]);
 
   if (loading) {
     return (

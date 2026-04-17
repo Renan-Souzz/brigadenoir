@@ -28,6 +28,7 @@ const MENU_ITEMS: Array<{
   { id: 'insumos',      label: 'Estoque de Insumos', icon: Icons.Package         },
   { id: 'checklist',    label: 'Checklist Diário',  icon: Icons.ClipboardCheck  },
   { id: 'fichas',       label: 'Modo de Preparo',   icon: Icons.BookOpen        },
+  { id: 'mod_ficha_tecnica', label: 'Ficha Técnica', icon: Icons.FileSpreadsheet, minRole: ['admin', 'ficha_tecnica', 'chef_executivo'] },
   { id: 'menu',         label: 'Menu Principal',    icon: Icons.UtensilsCrossed },
   { id: 'almoxarifado', label: 'Almoxarifado',      icon: Icons.Warehouse,       minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'] },
   { id: 'relatorio',    label: 'Relatório Eficiência', icon: Icons.BarChart3,    minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'] },
@@ -42,6 +43,7 @@ const ROLE_LABELS: Record<string, string> = {
   sous_chef: 'Sous-Chef',
   chef_de_partie: 'Chef de Partie',
   commis: 'Commis',
+  ficha_tecnica: 'Gestor de Custos',
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────

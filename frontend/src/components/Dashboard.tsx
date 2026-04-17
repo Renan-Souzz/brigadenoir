@@ -20,6 +20,7 @@ import StatCard from './shared/StatCard';
 import { useProfiles } from '../hooks/useProfiles';
 import { useTasks } from '../hooks/useTasks';
 import { useInsumos } from '../hooks/useInsumos';
+import { useDishes } from '../hooks/useDishes';
 import { usePax } from '../hooks/usePax';
 import { useSchedule } from '../hooks/useSchedule';
 import DashboardEscalaCard from './DashboardEscalaCard';
@@ -317,6 +318,7 @@ export default function Dashboard() {
   const { data: paxData = [] } = usePax(monthStartStr);
   const { tasks = [] } = useTasks();
   const { insumos = [] } = useInsumos();
+  const { data: dishes = [] } = useDishes();
 
   // 2. Computed Values (Derived Stats)
   const stats = useMemo(() => {
@@ -383,9 +385,26 @@ export default function Dashboard() {
     // Alert Logic
     const alertInsumos = isManagement ? insumos : insumos.filter(i => i.station === profile?.station);
     const alertTasks = isManagement ? tasks.filter(t => !t.is_completed) : tasks.filter(t => !t.is_completed && t.station === profile?.station);
+    const alertDishes = dishes.filter(d => d.porcoes < 2);
+    
     const alerts: any[] = [];
     const twoDaysSoon = new Date();
     twoDaysSoon.setDate(today.getDate() + 2);
+
+    // Process Dish Alerts (86)
+    alertDishes.forEach(d => {
+      const isZero = d.porcoes <= 0;
+      alerts.push({
+        id: `dish-${d.id}`,
+        type: isZero ? 'error' : 'warning',
+        title: isZero ? `PRATO ESGOTADO (86)` : `ESTOQUE CRÍTICO`,
+        desc: `${d.title}: ${isZero ? 'Acabou' : 'Restam ' + d.porcoes} unidades.`,
+        footer: (d.praca_responsavel || 'Cozinha').toUpperCase(),
+        borderColor: isZero ? 'border-error' : 'border-secondary',
+        tab: 'menu',
+        icon: <Icons.AlertCircle size={20} className={isZero ? 'text-error' : 'text-secondary'} />
+      });
+    });
 
     alertInsumos.forEach(i => {
       if (i.expiry_date && new Date(i.expiry_date) <= today) alerts.push({ id: `exp-${i.id}`, type: 'error', title: `Expirado: ${i.name}`, desc: `Item venceu. Descarte imediato.`, footer: 'ESTOQUE CRÍTICO', borderColor: 'border-error', tab: 'insumos' });
@@ -406,7 +425,7 @@ export default function Dashboard() {
       stationStats: perStation,
       alerts
     };
-  }, [paxData, tasks, insumos, isManagement, profile]);
+  }, [paxData, tasks, insumos, dishes, isManagement, profile]);
 
   // Handle formatting
   const greeting = useMemo(() => {
