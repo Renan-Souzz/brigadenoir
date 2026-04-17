@@ -42,16 +42,31 @@ export interface FTFichaComplemento {
 export function useFTFichas() {
   const queryClient = useQueryClient();
 
-  // Listagem simples
+  // Listagem completa com ingredientes para cálculo de CMV
   const { data: fichas = [], isLoading } = useQuery({
     queryKey: ['ft_fichas'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('ft_fichas')
-        .select('*')
+        .select(`
+          *,
+          ft_ficha_ingredientes(
+            pb_gramas,
+            insumo:ft_insumos(preco_unitario_base)
+          )
+        `)
         .order('nome');
+      
       if (error) throw error;
-      return data as FTFicha[];
+
+      // Normalizar para facilitar o cálculo no componente
+      return data.map((f: any) => ({
+        ...f,
+        ingredientes: f.ft_ficha_ingredientes?.map((i: any) => ({
+          pb_gramas: i.pb_gramas,
+          preco_unitario_base: i.insumo?.preco_unitario_base || 0
+        }))
+      })) as FTFicha[];
     }
   });
 

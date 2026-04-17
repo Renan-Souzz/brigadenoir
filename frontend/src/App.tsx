@@ -48,17 +48,24 @@ const VIEWS: Record<TabId, React.ComponentType> = {
   mod_ficha_tecnica: ModuloFichaTecnica,
 };
 
-/** Navigation items shown in the mobile bottom bar. */
-const MOBILE_NAV_ITEMS: Array<{ id: TabId; label: string; icon: string; minRole?: string[] }> = [
+/** Navigation items shown in the mobile bottom bar. Core items only. */
+const CORE_MOBILE_ITEMS: Array<{ id: TabId; label: string; icon: string; minRole?: string[] }> = [
   { id: 'dashboard',    label: 'Início',    icon: 'LayoutDashboard' },
-  { id: 'mod_ficha_tecnica', label: 'Fichas', icon: 'FileSpreadsheet', minRole: ['admin', 'ficha_tecnica', 'chef_executivo'] },
-  { id: 'insumos',      label: 'Estoque',   icon: 'Package'         },
-  { id: 'fichas',       label: 'Fichas',    icon: 'BookOpen'        },
-  { id: 'almoxarifado', label: 'Almoxa',    icon: 'Warehouse',      minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'] },
-  { id: 'brigada',      label: 'Brigada',   icon: 'Users',          minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef', 'chef_de_partie'] },
   { id: 'menu',         label: 'Menu',      icon: 'UtensilsCrossed' },
-  { id: 'suporte',      label: 'Suporte',   icon: 'HelpCircle'      },
-  { id: 'configuracoes', label: 'Ajustes',   icon: 'Settings'        },
+  { id: 'insumos',      label: 'Estoque',   icon: 'Package'         },
+  { id: 'mod_ficha_tecnica', label: 'Ficha Técnica', icon: 'FileSpreadsheet', minRole: ['admin', 'ficha_tecnica', 'chef_executivo'] },
+];
+
+/** Secondary items for the 'More' menu. */
+const SECONDARY_MOBILE_ITEMS: Array<{ id: TabId; label: string; icon: string; minRole?: string[] }> = [
+  { id: 'checklist',    label: 'Checklist', icon: 'ClipboardCheck'   },
+  { id: 'escala',       label: 'Escala',    icon: 'Calendar'         },
+  { id: 'almoxarifado', label: 'Almoxa',    icon: 'Warehouse',       minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'] },
+  { id: 'brigada',      label: 'Brigada',   icon: 'Users',           minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef', 'chef_de_partie'] },
+  { id: 'relatorio',    label: 'Relatório', icon: 'BarChart3'        },
+  { id: 'fichas',       label: 'Biblioteca', icon: 'BookOpen'        },
+  { id: 'suporte',      label: 'Suporte',   icon: 'HelpCircle'       },
+  { id: 'configuracoes', label: 'Ajustes',   icon: 'Settings'         },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -68,19 +75,25 @@ interface MobileNavItemProps {
   onClick: () => void;
   icon: string;
   label: string;
+  isMore?: boolean;
 }
 
-function MobileNavItem({ active, onClick, icon, label }: MobileNavItemProps) {
+function MobileNavItem({ active, onClick, icon, label, isMore }: MobileNavItemProps) {
   const Icon = (Icons as Record<string, any>)[icon] || Icons.HelpCircle;
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center transition-all duration-300 px-1 ${
-        active ? 'text-primary scale-110' : 'text-outline-variant hover:text-on-surface/80'
+      className={`flex flex-col items-center justify-center transition-all duration-300 w-full py-2 ${
+        active ? 'text-primary' : 'text-outline-variant hover:text-on-surface/80'
       }`}
     >
-      <Icon size={18} />
-      <span className="text-[8px] uppercase tracking-wider font-bold mt-1 leading-none">
+      <div className={`relative flex items-center justify-center transition-all duration-300 ${active ? 'scale-110' : ''}`}>
+        {active && (
+          <div className="absolute -inset-2 bg-primary/10 rounded-xl blur-lg animate-pulse" />
+        )}
+        <Icon size={20} strokeWidth={active ? 2.5 : 2} />
+      </div>
+      <span className={`text-[9px] uppercase tracking-wider font-black mt-1.5 transition-colors ${active ? 'text-primary' : 'text-outline-variant'}`}>
         {label}
       </span>
     </button>
@@ -92,6 +105,7 @@ function MobileNavItem({ active, onClick, icon, label }: MobileNavItemProps) {
 function AppContent() {
   const { session, loading, profile, requirePasswordChange } = useAuth();
   const { activeTab, setActiveTab } = useNavigation();
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   // ─── View Isolation for Ficha Técnica Role ──────────────────────────────────
   React.useEffect(() => {
@@ -118,33 +132,93 @@ function AppContent() {
 
   const View = VIEWS[activeTab];
 
-  const filteredNavItems = MOBILE_NAV_ITEMS.filter(item => {
+  const filteredCoreItems = CORE_MOBILE_ITEMS.filter(item => {
     if (!item.minRole) return true;
     return profile?.role && item.minRole.includes(profile.role);
   });
+
+  const filteredSecondaryItems = SECONDARY_MOBILE_ITEMS.filter(item => {
+    if (!item.minRole) return true;
+    return profile?.role && item.minRole.includes(profile.role);
+  });
+
+  const isTabInSecondary = filteredSecondaryItems.some(i => i.id === activeTab);
 
   return (
     <div className="flex min-h-screen bg-surface overflow-x-hidden">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className="flex-1 ml-0 md:ml-64 min-h-screen w-full max-w-full relative overflow-x-hidden min-w-0 flex flex-col focus:outline-none">
-        <div key={activeTab} className="flex-1 w-full max-w-full animate-view overflow-x-hidden">
+        <div key={activeTab} className="flex-1 w-full max-w-full animate-view overflow-x-hidden pb-24 md:pb-0">
           <View />
         </div>
       </main>
 
+      {/* Mobile Secondary Menu (More) */}
+      {isMoreOpen && (
+        <div className="fixed inset-0 z-[60] md:hidden">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsMoreOpen(false)} />
+          <div className="absolute bottom-24 left-4 right-4 bg-surface-container-high/90 backdrop-blur-2xl rounded-3xl border border-outline-variant/20 shadow-2xl p-6 animate-in slide-in-from-bottom-10 duration-500">
+            <div className="flex items-center justify-between mb-6">
+              <h4 className="text-xs font-black uppercase tracking-widest text-primary">Todas as Abas</h4>
+              <button onClick={() => setIsMoreOpen(false)} className="p-2 hover:bg-surface-container-highest rounded-full transition-colors">
+                <Icons.X size={18} className="text-outline-variant" />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-y-8">
+              {filteredSecondaryItems.map(item => {
+                const Icon = (Icons as Record<string, any>)[item.icon] || Icons.HelpCircle;
+                const active = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsMoreOpen(false);
+                    }}
+                    className="flex flex-col items-center gap-2 group"
+                  >
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                      active ? 'bg-primary text-on-primary shadow-lg shadow-primary/25' : 'bg-surface-container-highest/50 text-outline-variant group-hover:bg-primary/10 group-hover:text-primary'
+                    }`}>
+                      <Icon size={22} />
+                    </div>
+                    <span className={`text-[9px] font-black uppercase tracking-wider text-center ${active ? 'text-primary' : 'text-outline-variant group-hover:text-on-surface'}`}>
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 pb-safe bg-surface/60 backdrop-blur-xl rounded-t-xl shadow-[0px_-10px_30px_rgba(0,0,0,0.5)] border-t border-outline-variant/10">
-        {filteredNavItems.map((item) => (
+      <nav className="md:hidden fixed bottom-4 left-4 right-4 z-50 flex justify-around items-center h-20 bg-surface-container-highest/80 backdrop-blur-2xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-outline-variant/10 px-2">
+        {filteredCoreItems.map((item) => (
           <div key={item.id} className="flex-1">
             <MobileNavItem
               active={activeTab === item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                setActiveTab(item.id);
+                setIsMoreOpen(false);
+              }}
               icon={item.icon}
               label={item.label}
             />
           </div>
         ))}
+        
+        {/* More Button */}
+        <div className="flex-1">
+          <MobileNavItem
+            active={isMoreOpen || isTabInSecondary}
+            onClick={() => setIsMoreOpen(!isMoreOpen)}
+            icon={isMoreOpen ? 'X' : 'Menu'}
+            label="Mais"
+          />
+        </div>
       </nav>
     </div>
   );

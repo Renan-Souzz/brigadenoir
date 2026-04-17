@@ -12,7 +12,8 @@ export interface Factores {
 
 export interface IngredienteFicha extends Factores {
   pb: number;
-  preco_unitario_base: number;
+  precoUnitario: number;
+  insumo_nome?: string;
   // Campos Nutricionais (proporcionais a 100g/ml do insumo)
   acucares_adicionados_g: number;
   sodio_mg: number;
@@ -32,8 +33,8 @@ export function calcularPLFinal(pb: number, factores: Factores): number {
 /**
  * Calcula o custo do ingrediente baseando-se no Peso Bruto (PB)
  */
-export function calcularCustoIngrediente(pb: number, precoUnitarioBase: number): number {
-  return pb * precoUnitarioBase;
+export function calcularCustoIngrediente(pb: number, precoUnitario: number): number {
+  return pb * precoUnitario;
 }
 
 /**
