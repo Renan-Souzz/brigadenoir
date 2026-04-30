@@ -4,7 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type AppRole = 'admin' | 'chef_executivo' | 'chef_de_cuisine' | 'sous_chef' | 'chef_de_partie' | 'commis' | 'ficha_tecnica';
+export type AppRole = 'admin' | 'chef_executivo' | 'chef_de_cuisine' | 'sous_chef' | 'chef_de_partie' | 'commis' | 'ficha_tecnica' | 'fichas';
 export type KitchenStation = 'saucier' | 'garde_manger' | 'entremetier' | 'rotisseur' | 'poissonier' | 'patissier';
 
 export interface Profile {
@@ -44,8 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [requirePasswordChange, setRequirePasswordChange] = useState(false);
 
-  const isAdmin = profile?.role && ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'].includes(profile.role);
-  const isManagement = isAdmin; // Simplified since management now equals admin privileges
+  const isAdmin = !!profile?.role && ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'].includes(profile.role);
+  const isManagement = isAdmin;
   const isStationLead = profile?.role === 'chef_de_partie';
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateHeartbeat();
 
     // Set interval for every 60 seconds
-    const interval = setInterval(updateHeartbeat, 60000);
+    const interval = setInterval(updateHeartbeat, 300000); // 5 minutes
 
     return () => clearInterval(interval);
   }, [user]);

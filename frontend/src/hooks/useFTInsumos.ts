@@ -79,11 +79,47 @@ export function useFTInsumos() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ft_insumos'] })
   });
 
+  const updateInsumo = useMutation({
+    mutationFn: async (payload: Partial<FTInsumo> & { alergenicos?: string[] }) => {
+      const { id, alergenicos, ...rest } = payload;
+      
+      const { data, error } = await supabase
+        .from('ft_insumos')
+        .update({ ...rest, data_atualizacao: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+
+      if (alergenicos !== undefined) {
+        // Atualizar alérgenos: remover antigos e inserir novos
+        await supabase.from('ft_insumo_alergenicos').delete().eq('insumo_id', id);
+        
+        if (alergenicos.length > 0) {
+          const { data: algData } = await supabase
+            .from('ft_alergenicos')
+            .select('id, nome')
+            .in('nome', alergenicos);
+          
+          if (algData) {
+            const links = algData.map(a => ({ insumo_id: id, alergenico_id: a.id }));
+            await supabase.from('ft_insumo_alergenicos').insert(links);
+          }
+        }
+      }
+
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ft_insumos'] })
+  });
+
   return {
     insumos,
     isLoading,
     refetch,
     createInsumo: createInsumo.mutateAsync,
+    updateInsumo: updateInsumo.mutateAsync,
     deleteInsumo: deleteInsumo.mutateAsync
   };
 }

@@ -1,64 +1,86 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Trash2, 
-  ChevronRight, 
-  Info,
-  Beaker,
-  AlertCircle,
-  Hash,
-  DollarSign,
-  Scale
-} from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Droplets } from 'lucide-react';
 import PageLayout from '../shared/PageLayout';
 import PageHeader from '../shared/PageHeader';
 import Button from '../shared/Button';
-import StatCard from '../shared/StatCard';
 import { useFTInsumos, FTInsumo } from '../../hooks/useFTInsumos';
-import Modal from '../shared/Modal';
 import { useModal } from '../../contexts/ModalContext';
+import { converterParaBase } from '../../utils/engineFT';
+
+const UNIDADES = [
+  { value: 'g', label: 'Gramas', short: 'G' },
+  { value: 'kg', label: 'Quilos', short: 'KG' },
+  { value: 'ml', label: 'Mililitros', short: 'ML' },
+  { value: 'l', label: 'Litros', short: 'L' },
+  { value: 'un', label: 'Unidade', short: 'UN' },
+] as const;
+
+function deriveBase(unit: string): 'g' | 'ml' | 'un' {
+  if (unit === 'kg' || unit === 'g') return 'g';
+  if (unit === 'l' || unit === 'ml') return 'ml';
+  return 'un';
+}
+
+function formatQty(qty: number, unit: string): string {
+  if (qty === 0) return `0 ${unit}`;
+  if (Number.isInteger(qty)) return `${qty} ${unit}`;
+  return `${qty} ${unit}`;
+}
 
 export default function InsumosTecnicos() {
-  const { insumos, isLoading, createInsumo, deleteInsumo } = useFTInsumos();
+  const { insumos, isLoading, createInsumo, updateInsumo, deleteInsumo } = useFTInsumos();
   const { showConfirm, showAlert } = useModal();
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingInsumo, setEditingInsumo] = useState<FTInsumo | null>(null);
 
-  // Form State
+  // Form State — simplified
   const [nome, setNome] = useState('');
-  const [unidadeBase, setUnidadeBase] = useState<'g' | 'ml' | 'un'>('g');
-  const [precoCompra, setPrecoCompra] = useState('');
-  const [qtyCompra, setQtyCompra] = useState('');
-  const [unidadeCompra, setUnidadeCompra] = useState('kg');
-  const [selectedAlergenos, setSelectedAlergenos] = useState<string[]>([]);
+  const [preco, setPreco] = useState('');
+  const [quantidade, setQuantidade] = useState('');
+  const [unidade, setUnidade] = useState('kg');
   const [isLiquid, setIsLiquid] = useState(false);
 
-  const filteredInsumos = insumos.filter(i => 
+  const filteredInsumos = insumos.filter(i =>
     i.nome.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const stats = useMemo(() => ({
     total: insumos.length,
     expensive: insumos.filter(i => i.preco_unitario_base > 1).length,
-    unidades: insumos.filter(i => i.unidade_base === 'un').length
   }), [insumos]);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createInsumo({
+      const pCompra = parseFloat(preco) || 0;
+      const qCompra = parseFloat(quantidade) || 1;
+      const unidadeBase = deriveBase(unidade);
+      const volumeBase = converterParaBase(qCompra, unidade);
+      const precoUnitarioBase = volumeBase > 0 ? pCompra / volumeBase : 0;
+
+      const payload = {
         nome: nome.toUpperCase(),
         unidade_base: unidadeBase,
-        preco_compra: parseFloat(precoCompra),
-        quantidade_compra: parseFloat(qtyCompra),
-        unidade_compra: unidadeCompra,
-        acucares_adicionados_g: 0,
-        sodio_mg: 0,
-        gordura_saturada_g: 0,
+        preco_compra: pCompra,
+        quantidade_compra: qCompra,
+        unidade_compra: unidade,
+        preco_unitario_base: precoUnitarioBase,
         is_liquid: isLiquid,
-        alergenicos: selectedAlergenos
-      });
+        alergenicos: [] as string[],
+      };
+
+      if (editingInsumo) {
+        await updateInsumo({ ...payload, id: editingInsumo.id });
+      } else {
+        await createInsumo({
+          ...payload,
+          acucares_adicionados_g: 0,
+          sodio_mg: 0,
+          gordura_saturada_g: 0,
+        });
+      }
+
       setIsFormOpen(false);
       resetForm();
     } catch (err: any) {
@@ -66,206 +88,269 @@ export default function InsumosTecnicos() {
     }
   };
 
+  const handleEdit = (insumo: FTInsumo) => {
+    setEditingInsumo(insumo);
+    setNome(insumo.nome);
+    setPreco(insumo.preco_compra.toString());
+    setQuantidade(insumo.quantidade_compra.toString());
+    setUnidade(insumo.unidade_compra);
+    setIsLiquid(insumo.is_liquid);
+    setIsFormOpen(true);
+  };
+
   const resetForm = () => {
+    setEditingInsumo(null);
     setNome('');
-    setPrecoCompra('');
-    setQtyCompra('');
+    setPreco('');
+    setQuantidade('');
+    setUnidade('kg');
     setIsLiquid(false);
-    setSelectedAlergenos([]);
   };
 
   const handleDelete = async (id: string, nome: string) => {
     const confirmed = await showConfirm('Excluir Insumo', `Deseja remover "${nome}"? Isso pode afetar fichas existentes.`);
-    if (confirmed) {
-      await deleteInsumo(id);
-    }
+    if (confirmed) await deleteInsumo(id);
   };
 
   return (
-    <PageLayout>
-      <PageHeader 
-        showSearch 
-        onSearchChange={setSearchTerm} 
-        searchPlaceholder="BUSCAR INSUMO TÉCNICO..." 
+    <PageLayout maxWidth="full">
+      <PageHeader
+        showSearch
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="FILTRAR BASE DE DADOS TÉCNICA..."
       />
 
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 mt-8">
-        <div>
-          <span className="text-[10px] font-black tracking-[0.2em] text-primary uppercase flex items-center gap-2">
-            <Beaker size={14} /> Módulo Ficha Técnica
-          </span>
-          <h3 className="text-4xl font-black text-on-surface mt-2 tracking-tighter uppercase">Insumos Técnicos</h3>
-          <p className="mt-2 text-on-surface-variant text-sm">Base de custos e conversão para fichas técnicas.</p>
+      {/* Header + Stats */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10 mb-16 mt-10">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="w-12 h-[2px] bg-primary/30" />
+            <span className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Engenharia de Suprimentos</span>
+          </div>
+          <h3 className="text-5xl lg:text-7xl font-black text-on-surface tracking-tighter uppercase leading-[0.8]">Base de Insumos</h3>
+          <p className="text-xs font-medium text-outline-variant max-w-sm uppercase tracking-widest leading-relaxed">Gestão centralizada de custos unitários e conversões técnicas para produção.</p>
         </div>
-        <div className="flex gap-3">
-          <StatCard label="Total Itens" value={stats.total} color="border-primary" />
-          <StatCard label="Alto Valor" value={stats.expensive} color="border-secondary" />
-          <Button variant="primary" icon={<Plus size={18} />} onClick={() => setIsFormOpen(true)}>Cadastrar</Button>
+
+        <div className="flex items-center flex-wrap gap-6">
+          <div className="bg-surface-container/40 backdrop-blur-md rounded-3xl p-6 px-10 border border-outline-variant/10 text-center hover:border-primary/20 transition-colors">
+            <span className="text-[10px] font-black uppercase tracking-widest text-outline-variant block mb-2">Insumos Ativos</span>
+            <span className="text-4xl font-black text-on-surface leading-none">{stats.total}</span>
+          </div>
+          <div className="bg-primary/5 backdrop-blur-md rounded-3xl p-6 px-10 border border-primary/20 text-center hover:bg-primary/10 transition-colors">
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary block mb-2">Criticos ($)</span>
+            <span className="text-4xl font-black text-primary leading-none">{stats.expensive}</span>
+          </div>
+          <Button
+            variant="primary"
+            size="xl"
+            icon={<Plus size={24} />}
+            onClick={() => setIsFormOpen(true)}
+            className="shadow-2xl shadow-primary/30"
+          >
+            Novo Cadastro
+          </Button>
         </div>
       </div>
 
-      <div className="bg-surface-container rounded-3xl border border-outline-variant/10 overflow-hidden shadow-xl">
-        <table className="w-full text-left">
+      {/* Table */}
+      <div className="bg-surface-container/40 backdrop-blur-md rounded-[40px] border border-outline-variant/10 overflow-hidden shadow-2xl mb-32">
+        <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-surface-container-low border-b border-outline-variant/10">
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-outline-variant">Insumo</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-outline-variant">Compra (Base)</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-outline-variant">Custo Unitário Base</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-outline-variant">Atualização</th>
-              <th className="px-6 py-4 text-right"></th>
+            <tr className="bg-surface-container-highest/10">
+              <th className="pl-12 pr-6 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60">Designação do Insumo</th>
+              <th className="px-6 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60">Parâmetros de Compra</th>
+              <th className="px-6 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60">Última Revisão</th>
+              <th className="pr-12 py-6 text-right"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-outline-variant/5">
             {filteredInsumos.map(i => (
-              <tr key={i.id} className="hover:bg-surface-container-highest/30 transition-colors group">
-                <td className="px-6 py-5">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-black text-on-surface">{i.nome}</span>
-                    <div className="flex gap-1 mt-1">
+              <tr key={i.id} className="group hover:bg-primary/[0.02] transition-all duration-300">
+                <td className="pl-12 pr-6 py-6">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-base font-black text-on-surface uppercase tracking-tight group-hover:text-primary transition-colors">{i.nome}</span>
+                    <div className="flex gap-2">
                       {i.alergenicos?.map(a => (
-                        <span key={a} className="text-[8px] bg-error/10 text-error px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">contém {a}</span>
+                        <span key={a} className="text-[9px] bg-error/10 text-error px-2 py-1 rounded-lg font-black uppercase tracking-tighter border border-error/5">contém {a}</span>
                       ))}
+                      {i.is_liquid && <span className="text-[9px] bg-primary/10 text-primary px-2 py-1 rounded-lg font-black uppercase tracking-tighter border border-primary/5">líquido</span>}
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-5">
+                <td className="px-6 py-6">
                   <div className="flex flex-col">
-                    <span className="text-xs font-bold text-on-surface">R$ {(i.preco_compra || 0).toFixed(2)} por {i.quantidade_compra}{i.unidade_compra}</span>
-                    <span className="text-[10px] text-outline-variant uppercase">Base: {i.unidade_base}</span>
+                    <span className="text-sm font-black text-on-surface tracking-tight">R$ {(i.preco_compra || 0).toFixed(2)}</span>
+                    <span className="text-[10px] font-black text-outline-variant/60 uppercase mt-1">por {formatQty(i.quantidade_compra, i.unidade_compra)}</span>
                   </div>
                 </td>
-                <td className="px-6 py-5">
-                  <span className="text-sm font-black text-primary">R$ {(i.preco_unitario_base || 0).toFixed(4)} / {i.unidade_base}</span>
+                <td className="px-6 py-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                    <span className="text-[11px] font-black text-outline-variant/60 uppercase tracking-widest">{new Date(i.data_atualizacao).toLocaleDateString()}</span>
+                  </div>
                 </td>
-                <td className="px-6 py-5">
-                  <span className="text-[10px] font-bold text-outline-variant uppercase">{new Date(i.data_atualizacao).toLocaleDateString()}</span>
-                </td>
-                <td className="px-6 py-5 text-right">
-                  <button 
-                    onClick={() => handleDelete(i.id, i.nome)}
-                    className="p-2 text-outline-variant hover:text-error opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                <td className="pr-12 py-6 text-right">
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => handleEdit(i)} className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline-variant hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                      <Edit2 size={20} />
+                    </button>
+                    <button onClick={() => handleDelete(i.id, i.nome)} className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline-variant hover:text-error hover:bg-error/10 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {filteredInsumos.length === 0 && (
+          <div className="py-32 text-center text-outline-variant uppercase font-black tracking-widest text-xs opacity-50 flex flex-col items-center gap-6">
+            <div className="w-20 h-20 rounded-full bg-surface-container flex items-center justify-center">
+              <Search size={40} />
+            </div>
+            Nenhum insumo técnico encontrado
+          </div>
+        )}
       </div>
 
-      {/* Cadastro Modal */}
+      {/* ── Modal de Cadastro Simplificado ── */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsFormOpen(false)} />
-          <div className="relative bg-surface-container-high w-full max-w-xl rounded-3xl border border-outline-variant/20 shadow-2xl overflow-hidden animate-in zoom-in-95">
-            <div className="p-8">
-              <h4 className="text-2xl font-black text-on-surface uppercase tracking-tight mb-8 flex items-center gap-3">
-                <Plus className="text-primary" /> Novo Insumo Técnico
-              </h4>
-              
-              <form onSubmit={handleCreate} className="space-y-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => { setIsFormOpen(false); resetForm(); }} />
+          <div className="relative bg-surface-container/60 backdrop-blur-3xl w-full max-w-xl rounded-[40px] border border-outline-variant/20 shadow-[0_0_100px_-20px_rgba(0,0,0,0.8)] overflow-hidden animate-in zoom-in-95 fade-in duration-300">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-secondary to-primary" />
+
+            <div className="p-10 lg:p-12">
+              {/* Header */}
+              <div className="flex justify-between items-start mb-10">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2 block">Nome Completo</label>
-                  <input 
-                    required 
-                    type="text" 
-                    value={nome} 
-                    onChange={e => setNome(e.target.value)} 
-                    placeholder="EX: FILÉ MIGNON LIMPO" 
-                    className="w-full bg-surface-container border border-outline-variant/10 rounded-xl p-4 text-sm font-bold text-on-surface outline-none focus:ring-1 focus:ring-primary"
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-8 h-[1px] bg-primary/30" />
+                    <span className="text-[9px] font-black text-primary uppercase tracking-[0.3em]">Gestão de Suprimentos</span>
+                  </div>
+                  <h4 className="text-3xl lg:text-4xl font-black text-on-surface uppercase tracking-tighter">
+                    {editingInsumo ? 'Editar Insumo' : 'Novo Insumo'}
+                  </h4>
+                </div>
+                <button onClick={() => { setIsFormOpen(false); resetForm(); }} className="w-12 h-12 rounded-2xl bg-surface-container flex items-center justify-center text-outline-variant hover:text-on-surface transition-colors">
+                  <Plus size={24} className="rotate-45" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSave} className="space-y-8">
+                {/* 1. Nome */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 block px-2">Nome do Insumo</label>
+                  <input
+                    required
+                    type="text"
+                    value={nome}
+                    onChange={e => setNome(e.target.value)}
+                    placeholder="EX: MANTEIGA, FARINHA DE TRIGO..."
+                    className="w-full bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 text-base font-black text-on-surface outline-none transition-all uppercase placeholder:text-outline-variant/20 shadow-inner"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2 block">Unidade Base (Ficha)</label>
-                    <div className="flex gap-2">
-                       {(['g', 'ml', 'un'] as const).map(u => (
-                         <button 
-                            key={u}
-                            type="button"
-                            onClick={() => setUnidadeBase(u)}
-                            className={`flex-1 py-3 rounded-xl border text-[10px] font-black uppercase transition-all ${unidadeBase === u ? 'bg-primary text-on-primary border-primary' : 'bg-surface-container border-outline-variant/10 text-outline-variant hover:border-primary/50'}`}
-                         >
-                           {u}
-                         </button>
-                       ))}
+                {/* 2. Preço + Quantidade lado a lado */}
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 block px-2">Preço Pago</label>
+                    <div className="relative group/price">
+                      <span className="absolute left-5 top-1/2 -translate-y-1/2 text-sm font-black text-outline-variant/40 group-focus-within/price:text-primary transition-colors">R$</span>
+                      <input
+                        required
+                        type="number"
+                        step="0.01"
+                        value={preco}
+                        onChange={e => setPreco(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 pl-12 text-lg font-black text-on-surface outline-none transition-all shadow-inner"
+                      />
                     </div>
                   </div>
-                  <div>
-                     <label className="text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2 block">Unidade de Compra</label>
-                     <select 
-                        value={unidadeCompra} 
-                        onChange={e => setUnidadeCompra(e.target.value)}
-                        className="w-full bg-surface-container border border-outline-variant/10 rounded-xl p-3.5 text-sm font-bold text-on-surface outline-none"
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 block px-2">Quantidade</label>
+                    <div className="relative group/qty">
+                      <input
+                        type="number"
+                        step="0.001"
+                        value={quantidade}
+                        onChange={e => setQuantidade(e.target.value)}
+                        placeholder="1"
+                        className="w-full bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 text-lg font-black text-on-surface outline-none transition-all shadow-inner"
+                      />
+                      <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-outline-variant/40 uppercase group-focus-within/qty:text-primary transition-colors">{unidade}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Seletor de Unidade — único e visual */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 block px-2">Unidade de Medida</label>
+                  <div className="flex gap-2 bg-surface-container-highest/20 p-2 rounded-[20px] border border-outline-variant/10 shadow-inner">
+                    {UNIDADES.map(u => (
+                      <button
+                        key={u.value}
+                        type="button"
+                        onClick={() => {
+                          setUnidade(u.value);
+                          // Auto-set liquid when ml/L
+                          if (u.value === 'ml' || u.value === 'l') setIsLiquid(true);
+                          if (u.value === 'g' || u.value === 'kg' || u.value === 'un') setIsLiquid(false);
+                        }}
+                        className={`flex-1 py-3.5 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${unidade === u.value
+                          ? 'bg-primary text-on-primary shadow-xl shadow-primary/20'
+                          : 'text-outline-variant hover:text-on-surface'
+                        }`}
                       >
-                       <option value="kg">Quilograma (kg)</option>
-                       <option value="l">Litro (L)</option>
-                       <option value="un">Unidade (un)</option>
-                       <option value="g">Grama (g)</option>
-                       <option value="ml">Mililitro (ml)</option>
-                     </select>
+                        {u.short}
+                      </button>
+                    ))}
                   </div>
+                  <p className="text-[9px] font-bold text-outline-variant/50 uppercase px-2 mt-1">
+                    {unidade === 'g' && 'Itens pesados em gramas (ex: 500g de açúcar)'}
+                    {unidade === 'kg' && 'Itens pesados em quilos (ex: 1kg de farinha)'}
+                    {unidade === 'ml' && 'Líquidos em mililitros (ex: 200ml de essência)'}
+                    {unidade === 'l' && 'Líquidos em litros (ex: 1L de leite)'}
+                    {unidade === 'un' && 'Itens vendidos por unidade (ex: 12 ovos)'}
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2 block flex items-center gap-1.5">
-                      <DollarSign size={10} /> Preço de Compra
-                    </label>
-                    <input 
-                      required 
-                      type="number" 
-                      step="0.01" 
-                      value={precoCompra} 
-                      onChange={e => setPrecoCompra(e.target.value)} 
-                      placeholder="0.00" 
-                      className="w-full bg-surface-container border border-outline-variant/10 rounded-xl p-4 text-sm font-bold text-on-surface"
-                    />
+                {/* 4. Toggle líquido — só aparece para g/kg/un pois ml/L já é auto */}
+                {(unidade === 'g' || unidade === 'kg' || unidade === 'un') && (
+                  <div className="flex items-center gap-4 px-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsLiquid(!isLiquid)}
+                      className={`w-12 h-6 rounded-full transition-all duration-500 relative flex-shrink-0 ${isLiquid ? 'bg-primary shadow-lg shadow-primary/20' : 'bg-surface-container-highest shadow-inner'}`}
+                    >
+                      <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all duration-500 shadow-md ${isLiquid ? 'left-6' : 'left-0.5'}`} />
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <Droplets size={14} className={`${isLiquid ? 'text-primary' : 'text-outline-variant/40'} transition-colors`} />
+                      <span className="text-[10px] font-black uppercase text-outline-variant tracking-widest">Insumo Líquido</span>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2 block flex items-center gap-1.5">
-                      <Scale size={10} /> Qtd. Compra
-                    </label>
-                    <input 
-                      required 
-                      type="number" 
-                      step="0.001" 
-                      value={qtyCompra} 
-                      onChange={e => setQtyCompra(e.target.value)} 
-                      placeholder="1.000" 
-                      className="w-full bg-surface-container border border-outline-variant/10 rounded-xl p-4 text-sm font-bold text-on-surface"
-                    />
-                  </div>
-                </div>
+                )}
 
-                <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black uppercase text-primary/70 tracking-widest">Custo Base Calculado</span>
-                    <p className="text-[8px] text-primary/50 uppercase font-bold mt-0.5">Automático via Engenharia</p>
-                  </div>
-                  <span className="text-sm font-black text-primary tracking-tight">
-                    R$ {(parseFloat(precoCompra) > 0 && parseFloat(qtyCompra) > 0) ? (unidadeCompra === 'kg' || unidadeCompra === 'l' 
-                        ? parseFloat(precoCompra) / (parseFloat(qtyCompra) * 1000) 
-                        : parseFloat(precoCompra) / parseFloat(qtyCompra)).toFixed(5) : '0.00000'} / {unidadeBase}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3 mt-4 px-1">
-                  <button 
+                {/* 5. Botões */}
+                <div className="flex items-center justify-end gap-4 pt-2">
+                  <Button
+                    variant="ghost"
                     type="button"
-                    onClick={() => setIsLiquid(!isLiquid)}
-                    className={`w-10 h-5 rounded-full transition-colors relative ${isLiquid ? 'bg-primary' : 'bg-outline-variant/30'}`}
+                    size="xl"
+                    onClick={() => { setIsFormOpen(false); resetForm(); }}
                   >
-                    <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${isLiquid ? 'left-6' : 'left-1'}`} />
-                  </button>
-                  <span className="text-[10px] font-black uppercase text-on-surface-variant">Insumo Líquido (Referência 100ml)</span>
-                </div>
-
-                <div className="flex gap-3 mt-8">
-                  <Button variant="outline" className="flex-1" onClick={() => setIsFormOpen(false)}>Cancelar</Button>
-                  <Button variant="primary" type="submit" className="flex-1">Confirmar Cadastro</Button>
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="primary"
+                    type="submit"
+                    size="xl"
+                    className="shadow-2xl shadow-primary/20"
+                  >
+                    {editingInsumo ? 'Salvar Alterações' : 'Cadastrar Insumo'}
+                  </Button>
                 </div>
               </form>
             </div>

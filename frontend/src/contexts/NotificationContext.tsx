@@ -48,6 +48,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const { data, error } = await supabase
       .from('notifications')
       .select('id, title, message, type, station, is_read, dish_id, insumo_id, created_at')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -97,7 +98,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('is_read', false);
+      .eq('is_read', false)
+      .eq('user_id', user.id);
     if (!error) {
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     }

@@ -12,11 +12,13 @@ import {
   Utensils,
   Maximize2,
   FileText,
+  FileSpreadsheet,
   Clock,
   ShieldAlert,
   Droplets,
   Zap,
-  ThermometerSnowflake
+  ThermometerSnowflake,
+  ChevronDown
 } from 'lucide-react';
 import PageLayout from '../shared/PageLayout';
 import PageHeader from '../shared/PageHeader';
@@ -34,9 +36,9 @@ interface FichaEditorProps {
 }
 
 export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
-  const { getFicha, upsertFicha, isLoading: isFichaLoading } = useFTFichas();
+  const { getFicha, upsertFicha, deleteFicha, isLoading: isFichaLoading } = useFTFichas();
   const { insumos, isLoading: isInsumosLoading } = useFTInsumos();
-  const { showAlert } = useModal();
+  const { showAlert, showConfirm } = useModal();
 
   // Root States
   const [nome, setNome] = useState('');
@@ -153,6 +155,22 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
     setIngredientes(ingredientes.filter(i => i.id !== id));
   };
 
+  const handleDelete = async () => {
+    if (!fichaId) return;
+    const confirmed = await showConfirm(
+      'Excluir Ficha Técnica',
+      `Tem certeza que deseja excluir "${nome}"? Esta ação removerá permanentemente todos os dados financeiros e técnicos desta ficha.`
+    );
+    if (confirmed) {
+      try {
+        await deleteFicha(fichaId);
+        onClose();
+      } catch (err: any) {
+        showAlert('Erro ao Excluir', err.message);
+      }
+    }
+  };
+
   const handleSave = async () => {
     if (!nome) return showAlert('Atenção', 'O nome da ficha é obrigatório.');
     setIsSaving(true);
@@ -177,223 +195,357 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
 
   return (
     <PageLayout maxWidth="full">
-      <div className="flex items-center justify-between mb-8 group">
-        <div className="flex items-center gap-4">
-          <button onClick={onClose} className="w-10 h-10 rounded-xl bg-surface-container border border-outline-variant/10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all active:scale-95">
-            <ChevronLeft size={20} />
+      <div className="flex items-center justify-between mb-10 group">
+        <div className="flex items-center gap-6">
+          <button 
+            onClick={onClose} 
+            className="w-12 h-12 rounded-2xl bg-surface-container/60 backdrop-blur-md border border-outline-variant/10 flex items-center justify-center text-outline-variant hover:text-primary hover:border-primary/30 transition-all active:scale-90"
+          >
+            <ChevronLeft size={24} />
           </button>
           <div>
-             <h2 className="text-3xl font-black text-on-surface uppercase tracking-tighter">
-               {fichaId ? 'Engenharia de Ficha' : 'Nova Engenharia Técnica'}
+             <div className="flex items-center gap-2 mb-1">
+               <span className="w-8 h-[1px] bg-primary/30" />
+               <span className="text-[9px] font-black text-primary uppercase tracking-[0.3em]">Editor de Engenharia</span>
+             </div>
+             <h2 className="text-4xl font-black text-on-surface uppercase tracking-tighter">
+               {fichaId ? 'Ficha Técnica' : 'Novo Projeto Técnico'}
              </h2>
-             <p className="text-[10px] font-bold text-outline-variant uppercase tracking-[0.2em]">{nome || 'Rascunho de Produção'}</p>
           </div>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={() => exportToExcel({
-            ficha: { nome, categoria, rendimento, precoVenda, cmvIdeal },
-            ingredientes,
-            financeiro: { ...resumo, precoSugerido: resumo.precoSugerido(cmvIdeal) },
-            producao: { passos: complementos.observacoes },
-            rotulagem: { alergenos: [], gluten: complementos.contem_gluten ? 'SIM' : 'NÃO', lactose: complementos.contem_lactose ? 'SIM' : 'NÃO', validade: `${complementos.validade_dias} dias`, conservacao: complementos.conservacao }
-          })}>Excel</Button>
-          <Button variant="primary" icon={<Save size={18} />} loading={isSaving} onClick={handleSave}>Salvar Projeto</Button>
+        <div className="flex gap-4">
+          {fichaId && (
+            <button 
+              onClick={handleDelete}
+              className="w-12 h-12 rounded-2xl bg-error/10 border border-error/20 flex items-center justify-center text-error hover:bg-error hover:text-white transition-all active:scale-90 shadow-lg shadow-error/10"
+              title="Excluir Ficha Técnica"
+            >
+              <Trash2 size={20} />
+            </button>
+          )}
+          <Button 
+            variant="outline" 
+            size="lg"
+            className="border-primary/10"
+            onClick={() => exportToExcel({
+              ficha: { nome, categoria, rendimento, precoVenda, cmvIdeal },
+              ingredientes,
+              financeiro: { ...resumo, precoSugerido: resumo.precoSugerido(cmvIdeal) },
+              producao: { passos: complementos.observacoes },
+              rotulagem: { alergenos: [], gluten: complementos.contem_gluten ? 'SIM' : 'NÃO', lactose: complementos.contem_lactose ? 'SIM' : 'NÃO', validade: `${complementos.validade_dias} dias`, conservacao: complementos.conservacao }
+            })}
+          >
+            Excel
+          </Button>
+          <Button 
+            variant="outline" 
+            size="lg"
+            className="border-[#4285F4]/20 text-[#4285F4] hover:bg-[#4285F4]/10"
+            icon={<FileSpreadsheet size={18} />}
+            onClick={async () => {
+              try {
+                await syncToGoogleSheets({
+                  ficha: { nome, categoria, rendimento, precoVenda, cmvIdeal },
+                  ingredientes,
+                  financeiro: { ...resumo, precoSugerido: resumo.precoSugerido(cmvIdeal) },
+                  producao: { passos: complementos.observacoes },
+                  rotulagem: { alergenos: [], gluten: complementos.contem_gluten ? 'SIM' : 'NÃO', lactose: complementos.contem_lactose ? 'SIM' : 'NÃO', validade: `${complementos.validade_dias} dias`, conservacao: complementos.conservacao }
+                });
+                showAlert('Sucesso', 'Planilha sincronizada com seu Google Drive!');
+              } catch (err: any) {
+                showAlert('Erro no Sheets', err.message);
+              }
+            }}
+          >
+            Google Sheets
+          </Button>
+          <Button 
+            variant="primary" 
+            size="lg"
+            icon={<Save size={20} />} 
+            loading={isSaving} 
+            onClick={handleSave}
+            className="shadow-2xl shadow-primary/20"
+          >
+            Salvar Alterações
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-40">
-        <div className="lg:col-span-9 space-y-6">
-          <div className="bg-surface-container rounded-3xl border border-outline-variant/10 overflow-hidden shadow-2xl">
-            <div className="bg-surface-container-low p-6 border-b border-outline-variant/10 grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 pb-40">
+        <div className="lg:col-span-9 space-y-10">
+          {/* Dados Primários */}
+          <div className="bg-surface-container/40 backdrop-blur-md rounded-[40px] border border-outline-variant/10 overflow-hidden shadow-2xl">
+            <div className="bg-surface-container-low/50 p-10 grid grid-cols-1 md:grid-cols-4 gap-10">
                <div className="md:col-span-2">
-                 <label className="text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2 block">Nome da Preparação</label>
-                 <input type="text" value={nome} onChange={e => setNome(e.target.value)} placeholder="EX: RISOTTO DE COGUMELOS..." className="w-full bg-surface-container border-none rounded-xl p-4 text-sm font-black text-on-surface outline-none focus:ring-1 focus:ring-primary uppercase" />
+                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 mb-3 block">Designação da Receita</label>
+                 <input 
+                  type="text" 
+                  value={nome} 
+                  onChange={e => setNome(e.target.value)} 
+                  placeholder="EX: RISOTTO AL FUNGHI PORCINI..." 
+                  className="w-full bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 text-base font-black text-on-surface outline-none transition-all uppercase placeholder:text-outline-variant/30" 
+                 />
                </div>
                <div>
-                 <label className="text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2 block">Categoria</label>
-                 <select value={categoria} onChange={e => setCategoria(e.target.value)} className="w-full bg-surface-container border-none rounded-xl p-4 text-sm font-black text-on-surface outline-none uppercase">
-                   <option>Entrada</option>
-                   <option>Prato Principal</option>
-                   <option>Sobremesa</option>
-                   <option>Bebida</option>
-                   <option>Base / Molho</option>
-                 </select>
+                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 mb-3 block">Categoria</label>
+                 <div className="relative group">
+                   <select 
+                    value={categoria} 
+                    onChange={e => setCategoria(e.target.value)} 
+                    className="w-full appearance-none bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 pr-12 text-sm font-black text-on-surface outline-none uppercase cursor-pointer"
+                   >
+                     {['Entrada', 'Prato Principal', 'Sobremesa', 'Bebida', 'Base / Molho'].map(cat => (
+                       <option key={cat} value={cat} className="bg-surface-container-highest text-on-surface font-black uppercase">{cat}</option>
+                     ))}
+                   </select>
+                   <ChevronDown size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none group-focus-within:text-primary transition-colors" />
+                 </div>
                </div>
                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2 block">Rendimento Total</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 mb-3 block">Rendimento Total</label>
                   <div className="relative">
-                    <input type="number" value={rendimento} onChange={e => setRendimento(parseFloat(e.target.value))} className="w-full bg-surface-container border-none rounded-xl p-4 text-sm font-black text-on-surface outline-none" />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-outline-variant uppercase">Doses/kg</span>
+                    <input 
+                      type="number" 
+                      value={rendimento} 
+                      onChange={e => setRendimento(parseFloat(e.target.value))} 
+                      className="w-full bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 text-base font-black text-on-surface outline-none transition-all" 
+                    />
+                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[9px] font-black text-outline-variant/40 uppercase">KG / UN</span>
                   </div>
                </div>
             </div>
 
-            <div className="overflow-x-auto min-h-[300px]">
+            {/* Tabela de Insumos */}
+            <div className="overflow-x-auto min-h-[400px]">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-surface-container-highest/20">
-                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-outline-variant border-r border-outline-variant/5">Insumo</th>
-                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-outline-variant border-r border-outline-variant/5 text-center">Peso Bruto</th>
-                    <th className="px-2 py-3 text-[8px] font-black uppercase tracking-widest text-outline-variant border-r border-outline-variant/5 text-center" title="Fator de Correção">FC</th>
-                    <th className="px-2 py-3 text-[8px] font-black uppercase tracking-widest text-outline-variant border-r border-outline-variant/5 text-center" title="Índice de Reidratação">IR</th>
-                    <th className="px-2 py-3 text-[8px] font-black uppercase tracking-widest text-outline-variant border-r border-outline-variant/5 text-center" title="Índice de Absorção">IA</th>
-                    <th className="px-2 py-3 text-[8px] font-black uppercase tracking-widest text-outline-variant border-r border-outline-variant/5 text-center" title="Índice de Descongelamento">ICD</th>
-                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-outline-variant border-r border-outline-variant/5 text-center">PL Final</th>
-                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-outline-variant text-center">Custo</th>
-                    <th className="px-4 py-3 text-center"></th>
+                  <tr className="bg-surface-container-highest/10">
+                    <th className="pl-10 pr-4 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 border-r border-outline-variant/5">Insumo Técnico</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 border-r border-outline-variant/5 text-center">Quantidade</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 border-r border-outline-variant/5 text-center">Aproveitamento</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 border-r border-outline-variant/5 text-center">Peso Líquido</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 text-center">Custo Real</th>
+                    <th className="pr-10"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/5">
                   {ingredientes.map((ing) => {
                     const insumoData = insumos.find(i => i.id === ing.insumo_id);
+                    const aproveitamento = ing.fc && ing.fc > 0 ? (1 / ing.fc) * 100 : 100;
                     const plFinal = calcularPLFinal(ing.pb_gramas || 0, { fc: ing.fc || 1, ir: ing.ir || 1, ia: ing.ia || 1, icd: ing.icd || 1 });
-                    const custo = (ing.pb_gramas || 0) * (insumoData?.preco_unitario_base || 0);
+                    const custoBase = (ing.pb_gramas || 0) * (insumoData?.preco_unitario_base || 0);
+                    const custo = ing.fc && ing.fc > 0 ? custoBase * ing.fc : custoBase;
 
                     return (
-                      <tr key={ing.id} className="group hover:bg-surface-container-highest/20 transition-colors">
-                        <td className="p-2 border-r border-outline-variant/5 min-w-[200px]">
-                           <select 
-                            value={ing.insumo_id} 
-                            onChange={e => handleUpdateIngrediente(ing.id!, 'insumo_id', e.target.value)}
-                            className="w-full bg-transparent border-none p-2 text-xs font-bold text-on-surface outline-none"
-                           >
-                             <option value="">Selecionar...</option>
-                             {insumos.map(i => <option key={i.id} value={i.id}>{i.nome}</option>)}
-                           </select>
+                      <tr key={ing.id} className="group hover:bg-primary/[0.02] transition-colors duration-300">
+                        <td className="pl-10 pr-4 py-4 border-r border-outline-variant/5 min-w-[280px]">
+                           <div className="relative group/select">
+                             <select 
+                              value={ing.insumo_id} 
+                              onChange={e => handleUpdateIngrediente(ing.id!, 'insumo_id', e.target.value)}
+                              className="w-full appearance-none bg-transparent border-none p-3 pl-0 text-sm font-black text-on-surface outline-none cursor-pointer group-hover/select:text-primary transition-colors uppercase"
+                             >
+                               <option value="" className="bg-surface-container-highest">SELECIONAR INSUMO...</option>
+                               {insumos.map(i => <option key={i.id} value={i.id} className="bg-surface-container-highest">{i.nome}</option>)}
+                             </select>
+                             <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-outline-variant/40 group-hover/select:text-primary transition-colors pointer-events-none" />
+                           </div>
                         </td>
-                        <td className="p-2 border-r border-outline-variant/5 w-24">
-                           <input type="number" step="0.001" value={ing.pb_gramas} onChange={e => handleUpdateIngrediente(ing.id!, 'pb_gramas', parseFloat(e.target.value))} className="w-full bg-transparent border-none text-center text-xs font-bold text-on-surface outline-none" />
+                        <td className="px-4 py-4 border-r border-outline-variant/5 w-32">
+                           <input 
+                             type="number" step="0.001" value={ing.pb_gramas} 
+                             onChange={e => handleUpdateIngrediente(ing.id!, 'pb_gramas', parseFloat(e.target.value))} 
+                             className="w-full bg-surface-container-highest/20 rounded-xl p-3 text-center text-sm font-black text-on-surface outline-none focus:ring-1 focus:ring-primary/40 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                           />
                         </td>
-                        <td className="p-1 border-r border-outline-variant/5 w-12">
-                           <input type="number" step="0.01" value={ing.fc} onChange={e => handleUpdateIngrediente(ing.id!, 'fc', parseFloat(e.target.value))} className="w-full bg-transparent border-none text-center text-[10px] font-bold text-outline-variant outline-none" />
+                        <td className="px-2 py-4 border-r border-outline-variant/5 w-28">
+                           <div className="relative">
+                             <input 
+                               type="number" step="1" min="1" max="100"
+                               value={Math.round(aproveitamento)}
+                               onChange={e => {
+                                 const pct = parseFloat(e.target.value) || 100;
+                                 const newFc = pct > 0 ? 100 / pct : 1;
+                                 handleUpdateIngrediente(ing.id!, 'fc', parseFloat(newFc.toFixed(4)));
+                               }}
+                               className={`w-full bg-surface-container-highest/20 rounded-xl p-3 pr-8 text-center text-sm font-black outline-none focus:ring-1 focus:ring-primary/40 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${aproveitamento < 70 ? 'text-warning' : aproveitamento < 50 ? 'text-error' : 'text-on-surface'}`}
+                             />
+                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-outline-variant/40">%</span>
+                           </div>
                         </td>
-                        <td className="p-1 border-r border-outline-variant/5 w-12">
-                           <input type="number" step="0.01" value={ing.ir} onChange={e => handleUpdateIngrediente(ing.id!, 'ir', parseFloat(e.target.value))} className="w-full bg-transparent border-none text-center text-[10px] font-bold text-outline-variant outline-none" />
+                        <td className="px-6 py-4 border-r border-outline-variant/5 w-32 bg-primary/[0.01] text-center">
+                           <div className="flex flex-col">
+                             <span className="text-sm font-black text-on-surface/40 leading-none">{plFinal.toFixed(1)}</span>
+                             <span className="text-[9px] font-black text-outline-variant/30 uppercase mt-1">{insumoData?.unidade_base}</span>
+                           </div>
                         </td>
-                        <td className="p-1 border-r border-outline-variant/5 w-12">
-                           <input type="number" step="0.01" value={ing.ia} onChange={e => handleUpdateIngrediente(ing.id!, 'ia', parseFloat(e.target.value))} className="w-full bg-transparent border-none text-center text-[10px] font-bold text-outline-variant outline-none" />
+                        <td className="px-6 py-4 w-40 bg-primary/[0.03] text-center">
+                           <span className="text-sm font-black text-primary tracking-tight">R$ {custo.toFixed(2)}</span>
                         </td>
-                        <td className="p-1 border-r border-outline-variant/5 w-12">
-                           <input type="number" step="0.01" value={ing.icd} onChange={e => handleUpdateIngrediente(ing.id!, 'icd', parseFloat(e.target.value))} className="w-full bg-transparent border-none text-center text-[10px] font-bold text-outline-variant outline-none" />
-                        </td>
-                        <td className="p-2 border-r border-outline-variant/5 w-24 bg-surface-container-highest/10 text-center">
-                           <span className="text-xs font-black text-on-surface/50">{plFinal.toFixed(1)}<small>{insumoData?.unidade_base}</small></span>
-                        </td>
-                        <td className="p-2 w-28 bg-primary/5 text-center">
-                           <span className="text-xs font-black text-primary">R$ {custo.toFixed(2)}</span>
-                        </td>
-                        <td className="p-2 text-center w-10">
-                          <button onClick={() => handleRemoveIngrediente(ing.id!)} className="text-outline-variant hover:text-error opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
+                        <td className="pr-10 text-right w-16">
+                          <button 
+                            onClick={() => handleRemoveIngrediente(ing.id!)} 
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-outline-variant hover:text-error hover:bg-error/10 opacity-0 group-hover:opacity-100 transition-all duration-300"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-              <button onClick={handleAddIngrediente} className="w-full p-4 text-[10px] font-black uppercase tracking-widest text-outline-variant hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2 border-t border-outline-variant/5">
-                <Plus size={16} /> Adicionar Insumo à Engenharia
+              <button 
+                onClick={handleAddIngrediente} 
+                className="w-full p-8 text-[11px] font-black uppercase tracking-[0.3em] text-outline-variant hover:text-primary hover:bg-primary/[0.02] transition-all flex items-center justify-center gap-3 border-t border-outline-variant/5 group"
+              >
+                <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" /> 
+                Adicionar Novo Insumo Técnico
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div className="bg-surface-container rounded-3xl p-6 border border-outline-variant/10">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-outline-variant mb-4 flex items-center gap-2"><Utensils size={14} /> Modo de Preparo Profissional</h4>
+          {/* Preparo e Rotulagem */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+             <div className="bg-surface-container/40 backdrop-blur-md rounded-[40px] p-10 border border-outline-variant/10 shadow-2xl">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                    <Utensils size={18} />
+                  </div>
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface">Instruções de Produção</h4>
+                </div>
                 <textarea 
-                  placeholder="DESCREVA O PASSO A PASSO DA PRODUÇÃO..." 
+                  placeholder="DESCREVA O PASSO A PASSO DA EXECUÇÃO, TEMPOS E TEMPERATURAS..." 
                   value={complementos.observacoes} 
                   onChange={e => setComplementos({...complementos, observacoes: e.target.value})}
-                  className="w-full bg-surface-container-low rounded-2xl p-6 text-sm font-medium text-on-surface min-h-[250px] outline-none border-2 border-transparent focus:border-primary/20 transition-all shadow-inner"
+                  className="w-full bg-surface-container-low/40 rounded-3xl p-8 text-sm font-medium text-on-surface min-h-[350px] outline-none border-2 border-transparent focus:border-primary/20 transition-all shadow-inner leading-relaxed placeholder:text-outline-variant/20"
                 />
              </div>
 
-             <div className="bg-surface-container rounded-3xl p-6 border border-outline-variant/10">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-outline-variant mb-6 flex items-center gap-2"><ShieldAlert size={14} /> Rotulagem ANVISA RDC 429/2020</h4>
+             <div className="bg-surface-container/40 backdrop-blur-md rounded-[40px] p-10 border border-outline-variant/10 shadow-2xl flex flex-col">
+                <div className="flex items-center gap-3 mb-10">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                    <ShieldAlert size={18} />
+                  </div>
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface">Conformidade RDC 429/2020</h4>
+                </div>
                 
-                {/* Alertas ANVISA */}
-                <div className="space-y-4 mb-8">
-                  {alertasAnvisa.altoAcucar && (
-                    <div className="bg-black text-white p-4 rounded-xl flex items-center gap-4 border-2 border-white/10 animate-pulse">
-                      <div className="w-12 h-12 flex items-center justify-center bg-white text-black rounded-lg font-black text-xl">!</div>
-                      <div>
-                        <div className="text-[10px] font-black uppercase tracking-widest leading-none">ALTO EM</div>
-                        <div className="text-lg font-black uppercase">AÇÚCAR ADICIONADO</div>
-                      </div>
+                {/* Alertas ANVISA Premium */}
+                <div className="space-y-6 flex-1">
+                  {(alertasAnvisa.altoAcucar || alertasAnvisa.altoSodio) ? (
+                    <div className="space-y-4">
+                      {alertasAnvisa.altoAcucar && (
+                        <div className="bg-black text-white p-6 rounded-[24px] flex items-center gap-6 border border-white/10 shadow-2xl animate-pulse-subtle">
+                          <div className="w-14 h-14 shrink-0 flex items-center justify-center bg-white text-black rounded-2xl font-black text-2xl shadow-xl">!</div>
+                          <div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">ALERTA ANVISA</div>
+                            <div className="text-xl font-black uppercase tracking-tight">ALTO EM AÇÚCAR</div>
+                          </div>
+                        </div>
+                      )}
+                      {alertasAnvisa.altoSodio && (
+                        <div className="bg-black text-white p-6 rounded-[24px] flex items-center gap-6 border border-white/10 shadow-2xl animate-pulse-subtle">
+                          <div className="w-14 h-14 shrink-0 flex items-center justify-center bg-white text-black rounded-2xl font-black text-2xl shadow-xl">!</div>
+                          <div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">ALERTA ANVISA</div>
+                            <div className="text-xl font-black uppercase tracking-tight">ALTO EM SÓDIO</div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {alertasAnvisa.altoSodio && (
-                    <div className="bg-black text-white p-4 rounded-xl flex items-center gap-4 border-2 border-white/10 animate-pulse">
-                      <div className="w-12 h-12 flex items-center justify-center bg-white text-black rounded-lg font-black text-xl">!</div>
-                      <div>
-                        <div className="text-[10px] font-black uppercase tracking-widest leading-none">ALTO EM</div>
-                        <div className="text-lg font-black uppercase">SÓDIO</div>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-primary/20 rounded-[32px] p-10 text-center group">
+                      <div className="w-24 h-24 rounded-full bg-primary/5 flex items-center justify-center mb-6 group-hover:bg-primary/10 transition-colors duration-500">
+                        <CheckCircle2 className="text-primary" size={48} />
                       </div>
-                    </div>
-                  )}
-                  {!alertasAnvisa.altoAcucar && !alertasAnvisa.altoSodio && (
-                    <div className="bg-primary/10 border border-primary/20 p-4 rounded-xl flex items-center gap-3">
-                      <CheckCircle2 className="text-primary" size={20} />
-                      <span className="text-[10px] font-black text-primary uppercase tracking-widest">Conforme com limites da RDC 429</span>
+                      <span className="text-[11px] font-black text-primary uppercase tracking-[0.3em] mb-2">Selagem Técnica Limpa</span>
+                      <p className="text-[10px] font-medium text-outline-variant uppercase">Conforme limites da RDC 429</p>
                     </div>
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-outline-variant/5">
-                   <div className="p-3 bg-surface-container-low rounded-xl">
-                      <span className="text-[8px] font-black text-outline-variant uppercase block">Açúcar / 100g</span>
-                      <span className="text-sm font-black text-on-surface">{alertasAnvisa.valoresPor100.acucarPor100.toFixed(1)}g</span>
+                <div className="grid grid-cols-2 gap-6 mt-10 pt-10 border-t border-outline-variant/10">
+                   <div className="p-6 bg-surface-container-low/60 rounded-3xl border border-outline-variant/5">
+                      <span className="text-[9px] font-black text-outline-variant/60 uppercase block mb-2 tracking-widest">Açúcar / 100g</span>
+                      <span className="text-2xl font-black text-on-surface tracking-tighter">{alertasAnvisa.valoresPor100.acucarPor100.toFixed(1)}<small className="text-sm">g</small></span>
                    </div>
-                   <div className="p-3 bg-surface-container-low rounded-xl">
-                      <span className="text-[8px] font-black text-outline-variant uppercase block">Sódio / 100g</span>
-                      <span className="text-sm font-black text-on-surface">{alertasAnvisa.valoresPor100.sodioPor100.toFixed(0)}mg</span>
+                   <div className="p-6 bg-surface-container-low/60 rounded-3xl border border-outline-variant/5">
+                      <span className="text-[9px] font-black text-outline-variant/60 uppercase block mb-2 tracking-widest">Sódio / 100g</span>
+                      <span className="text-2xl font-black text-on-surface tracking-tighter">{alertasAnvisa.valoresPor100.sodioPor100.toFixed(0)}<small className="text-sm">mg</small></span>
                    </div>
                 </div>
              </div>
           </div>
         </div>
 
-        <div className="lg:col-span-3 space-y-6">
-          <div className="bg-surface-container rounded-3xl p-8 border border-outline-variant/10 shadow-2xl sticky top-8 overflow-hidden">
-             {isCmvCritical && <div className="absolute top-0 left-0 w-full h-1 bg-error animate-pulse" />}
+        {/* Sidebar Financeira Premium */}
+        <div className="lg:col-span-3 space-y-8">
+          <div className="bg-surface-container/60 backdrop-blur-xl rounded-[40px] p-10 border border-outline-variant/10 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] sticky top-10 overflow-hidden group">
+             {isCmvCritical && <div className="absolute top-0 left-0 w-full h-2 bg-error animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.5)]" />}
              
-             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant mb-8 flex items-center gap-2"><Calculator size={14} /> Engenharia Financeira</h4>
+             <div className="flex items-center gap-3 mb-12">
+               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                 <Calculator size={18} />
+               </div>
+               <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-on-surface">Engenharia CMV</h4>
+             </div>
              
-             <div className="space-y-8">
+             <div className="space-y-12">
                 <div>
-                   <span className="text-[9px] font-black uppercase tracking-widest text-outline-variant block mb-1">Custo da Receita</span>
-                   <div className="text-4xl font-black text-on-surface tracking-tighter">R$ {resumo.custoTotal.toFixed(2)}</div>
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 block mb-3">Custo da Receita</span>
+                   <div className="text-5xl font-black text-on-surface tracking-tighter leading-none group-hover:text-primary transition-colors duration-500">
+                     <small className="text-lg opacity-40 mr-1">R$</small>
+                     {resumo.custoTotal.toFixed(2)}
+                   </div>
                 </div>
 
-                <div className="p-6 rounded-2xl bg-surface-container-low border border-outline-variant/5">
-                   <div className="flex justify-between items-center mb-4">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-outline-variant">Preço de Venda</span>
-                      <div className="flex items-center gap-2 bg-surface-container p-1 px-2 rounded-lg border border-primary/20">
-                        <span className="text-[8px] font-black text-primary">META</span>
-                        <input type="number" value={cmvIdeal} onChange={e => setCmvIdeal(parseFloat(e.target.value))} className="w-6 bg-transparent text-[10px] font-black text-primary text-right outline-none" />
-                        <span className="text-[8px] font-black text-primary">%</span>
+                <div className="p-8 rounded-[32px] bg-surface-container-low/80 border border-outline-variant/5 shadow-inner">
+                   <div className="flex justify-between items-center mb-6">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60">Preço Venda</span>
+                      <div className="flex items-center gap-3 bg-primary/10 p-2 px-3 rounded-2xl border border-primary/20">
+                        <span className="text-[9px] font-black text-primary uppercase">Meta</span>
+                        <input 
+                          type="number" 
+                          value={cmvIdeal} 
+                          onChange={e => setCmvIdeal(parseFloat(e.target.value))} 
+                          className="w-8 bg-transparent text-xs font-black text-primary text-right outline-none" 
+                        />
+                        <span className="text-xs font-black text-primary">%</span>
                       </div>
                    </div>
-                   <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-outline-variant">R$</span>
-                      <input type="number" step="0.50" value={precoVenda} onChange={e => setPrecoVenda(parseFloat(e.target.value))} className={`w-full bg-surface-container border-2 rounded-xl py-4 pl-12 pr-4 text-xl font-black outline-none transition-all ${isCmvCritical ? 'border-error/30 text-error focus:border-error' : 'border-outline-variant/10 text-on-surface focus:border-primary'}`} />
+                   <div className="relative group/price">
+                      <span className="absolute left-6 top-1/2 -translate-y-1/2 text-lg font-black text-outline-variant/30 group-focus-within/price:text-primary transition-colors">R$</span>
+                      <input 
+                        type="number" 
+                        step="0.50" 
+                        value={precoVenda} 
+                        onChange={e => setPrecoVenda(parseFloat(e.target.value))} 
+                        className={`w-full bg-surface-container-highest/40 border-2 rounded-[24px] py-6 pl-16 pr-6 text-2xl font-black outline-none transition-all ${isCmvCritical ? 'border-error/30 text-error focus:border-error' : 'border-transparent text-on-surface focus:border-primary/40'}`} 
+                      />
                    </div>
-                   <p className="mt-3 text-[9px] font-bold text-outline-variant uppercase">Sugerido para {cmvIdeal}%: <span className="text-primary font-black">R$ {resumo.precoSugerido(cmvIdeal).toFixed(2)}</span></p>
+                   <div className="mt-5 flex items-center justify-between">
+                     <span className="text-[9px] font-black text-outline-variant/40 uppercase tracking-widest">Preço Sugerido</span>
+                     <span className="text-sm font-black text-primary">R$ {resumo.precoSugerido(cmvIdeal).toFixed(2)}</span>
+                   </div>
                 </div>
 
-                <div className={`p-6 rounded-3xl border-2 transition-all duration-500 shadow-lg ${isCmvCritical ? 'bg-error/10 border-error/50 animate-shake' : isCmvWarning ? 'bg-warning/10 border-warning/50' : 'bg-primary/10 border-primary/50'}`}>
-                   <div className="flex justify-between items-center mb-2">
-                     <span className={`text-[10px] font-black uppercase tracking-widest ${isCmvCritical ? 'text-error' : 'text-primary'}`}>CMV ATUAL</span>
-                     {isCmvCritical ? <AlertTriangle className="text-error" size={20} /> : <CheckCircle2 className={`text-primary ${!isCmvCritical && !isCmvWarning && 'animate-bounce'}`} size={20} />}
+                <div className={`p-10 rounded-[40px] border-2 transition-all duration-700 shadow-2xl relative overflow-hidden ${isCmvCritical ? 'bg-error/10 border-error/40' : isCmvWarning ? 'bg-warning/10 border-warning/40' : 'bg-primary/5 border-primary/40'}`}>
+                   <div className="flex justify-between items-center mb-4 relative z-10">
+                     <span className={`text-[11px] font-black uppercase tracking-[0.3em] ${isCmvCritical ? 'text-error' : 'text-primary'}`}>Margem CMV</span>
+                     {isCmvCritical ? <ShieldAlert className="text-error animate-pulse-subtle" size={28} /> : <TrendingUp className={`text-primary ${!isCmvCritical && !isCmvWarning && 'animate-bounce'}`} size={28} />}
                    </div>
-                   <div className={`text-5xl font-black tracking-tighter ${isCmvCritical ? 'text-error' : isCmvWarning ? 'text-warning' : 'text-primary'}`}>{resumo.cmv.toFixed(1)}%</div>
+                   <div className={`text-6xl font-black tracking-tighter relative z-10 ${isCmvCritical ? 'text-error' : isCmvWarning ? 'text-warning' : 'text-primary'}`}>
+                     {resumo.cmv.toFixed(1)}<small className="text-2xl">%</small>
+                   </div>
                    
-                   <div className="w-full h-3 bg-black/10 rounded-full mt-6 overflow-hidden border border-white/5">
-                      <div className={`h-full transition-all duration-1000 ${isCmvCritical ? 'bg-error' : isCmvWarning ? 'bg-warning' : 'bg-primary'}`} style={{ width: `${Math.min(resumo.cmv, 100)}%` }} />
+                   <div className="w-full h-3 bg-black/10 rounded-full mt-10 overflow-hidden relative z-10 border border-white/5 shadow-inner">
+                      <div className={`h-full transition-all duration-[1.5s] ease-out shadow-[0_0_15px_rgba(var(--primary),0.6)] ${isCmvCritical ? 'bg-error shadow-error/50' : isCmvWarning ? 'bg-warning shadow-warning/50' : 'bg-primary shadow-primary/50'}`} style={{ width: `${Math.min(resumo.cmv, 100)}%` }} />
                    </div>
                    
                    {isCmvCritical && (
-                     <div className="mt-6 p-3 bg-error text-white rounded-xl">
-                        <p className="text-[9px] font-black uppercase text-center leading-tight">PREJUÍZO! O CMV excedeu a meta de {cmvIdeal}%.</p>
+                     <div className="mt-8 p-4 bg-error text-white rounded-2xl relative z-10 shadow-lg animate-view">
+                        <p className="text-[10px] font-black uppercase text-center leading-tight tracking-widest">Operação no Vermelho!</p>
                      </div>
                    )}
                 </div>

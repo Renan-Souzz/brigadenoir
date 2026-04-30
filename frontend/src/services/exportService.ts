@@ -27,7 +27,7 @@ export interface ExportData {
   };
 }
 
-export const exportToExcel = (data: ExportData | any) => {
+export const exportToExcel = (data: ExportData & { financeiro: ExportData['financeiro'] & { cmv: number; nutricao?: { acucar: number; sodio: number; gordura: number } } }) => {
   const wb = XLSX.utils.book_new();
 
   // Aba 1: Ficha Técnica (Engenharia)

@@ -4,7 +4,18 @@
  */
 
 import React, { useState } from 'react';
-import * as Icons from 'lucide-react';
+import {
+  LayoutDashboard, UtensilsCrossed, Package, FileSpreadsheet,
+  ClipboardCheck, Calendar, Warehouse, Users, BarChart3,
+  BookOpen, HelpCircle, Settings, X, Menu, type LucideIcon
+} from 'lucide-react';
+
+// Icon lookup map — replaces import * to avoid bundling all 1500+ icons
+const ICON_MAP: Record<string, LucideIcon> = {
+  LayoutDashboard, UtensilsCrossed, Package, FileSpreadsheet,
+  ClipboardCheck, Calendar, Warehouse, Users, BarChart3,
+  BookOpen, HelpCircle, Settings, X, Menu
+};
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ModalProvider } from './contexts/ModalContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -28,8 +39,7 @@ import Auth from './components/Auth';
 import ResetPassword from './components/ResetPassword';
 import Escala from './components/Escala';
 import Modal from './components/shared/Modal';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
+import ProfileOnboarding from './components/ProfileOnboarding';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -53,7 +63,7 @@ const CORE_MOBILE_ITEMS: Array<{ id: TabId; label: string; icon: string; minRole
   { id: 'dashboard',    label: 'Início',    icon: 'LayoutDashboard' },
   { id: 'menu',         label: 'Menu',      icon: 'UtensilsCrossed' },
   { id: 'insumos',      label: 'Estoque',   icon: 'Package'         },
-  { id: 'mod_ficha_tecnica', label: 'Ficha Técnica', icon: 'FileSpreadsheet', minRole: ['admin', 'ficha_tecnica', 'chef_executivo'] },
+  { id: 'mod_ficha_tecnica', label: 'Ficha Técnica', icon: 'FileSpreadsheet', minRole: ['admin', 'ficha_tecnica', 'chef_executivo', 'fichas'] },
 ];
 
 /** Secondary items for the 'More' menu. */
@@ -79,7 +89,7 @@ interface MobileNavItemProps {
 }
 
 function MobileNavItem({ active, onClick, icon, label, isMore }: MobileNavItemProps) {
-  const Icon = (Icons as Record<string, any>)[icon] || Icons.HelpCircle;
+  const Icon = ICON_MAP[icon] || HelpCircle;
   return (
     <button
       onClick={onClick}
@@ -107,9 +117,19 @@ function AppContent() {
   const { activeTab, setActiveTab } = useNavigation();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
-  // ─── View Isolation for Ficha Técnica Role ──────────────────────────────────
+  // ─── View Isolation for Restricted Roles ──────────────────────────────────
   React.useEffect(() => {
-    if (profile?.role === 'ficha_tecnica' && activeTab !== 'mod_ficha_tecnica' && activeTab !== 'configuracoes' && activeTab !== 'suporte') {
+    if (!profile) return;
+
+    if (profile.role === 'fichas') {
+       // O login "Fichas" só pode ver o módulo de ficha técnica, suporte e sair
+       if (activeTab !== 'mod_ficha_tecnica' && activeTab !== 'suporte' && activeTab !== 'configuracoes') {
+         setActiveTab('mod_ficha_tecnica');
+       }
+       return;
+    }
+
+    if (profile.role === 'ficha_tecnica' && activeTab !== 'mod_ficha_tecnica' && activeTab !== 'configuracoes' && activeTab !== 'suporte') {
       setActiveTab('mod_ficha_tecnica');
     }
   }, [profile, activeTab, setActiveTab]);
@@ -130,14 +150,25 @@ function AppContent() {
     return <ResetPassword />;
   }
 
+  // Se logado mas sem perfil técnico (Google Users novos), forçar onboarding
+  if (session && (!profile || !profile.station)) {
+    return <ProfileOnboarding />;
+  }
+
   const View = VIEWS[activeTab];
 
   const filteredCoreItems = CORE_MOBILE_ITEMS.filter(item => {
+    if (profile?.role === 'fichas') {
+      return item.id === 'mod_ficha_tecnica';
+    }
     if (!item.minRole) return true;
     return profile?.role && item.minRole.includes(profile.role);
   });
 
   const filteredSecondaryItems = SECONDARY_MOBILE_ITEMS.filter(item => {
+    if (profile?.role === 'fichas') {
+      return ['suporte', 'configuracoes'].includes(item.id);
+    }
     if (!item.minRole) return true;
     return profile?.role && item.minRole.includes(profile.role);
   });
@@ -162,12 +193,12 @@ function AppContent() {
             <div className="flex items-center justify-between mb-6">
               <h4 className="text-xs font-black uppercase tracking-widest text-primary">Todas as Abas</h4>
               <button onClick={() => setIsMoreOpen(false)} className="p-2 hover:bg-surface-container-highest rounded-full transition-colors">
-                <Icons.X size={18} className="text-outline-variant" />
+                <X size={18} className="text-outline-variant" />
               </button>
             </div>
             <div className="grid grid-cols-3 gap-y-8">
               {filteredSecondaryItems.map(item => {
-                const Icon = (Icons as Record<string, any>)[item.icon] || Icons.HelpCircle;
+                const Icon = ICON_MAP[item.icon] || HelpCircle;
                 const active = activeTab === item.id;
                 return (
                   <button

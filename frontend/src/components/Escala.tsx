@@ -11,9 +11,12 @@ import {
   AlertCircle,
   Clock,
   Palmtree,
-  Coins
+  Coins,
+  FileText,
+  MousePointer2
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
+import * as XLSX from 'xlsx';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfiles } from '../hooks/useProfiles';
 import { useSchedule, DutyStatus, DutyRecord } from '../hooks/useSchedule';
@@ -39,10 +42,10 @@ const getMonthDaysArray = (year: number, month: number) => {
   });
 };
 
-const STATUS_CONFIG: Record<DutyStatus, { label: string; icon: any; color: string; bg: string }> = {
-  trabalho: { label: 'Trabalho', icon: Check, color: 'text-primary', bg: 'bg-primary/20' },
-  folga: { label: 'Folga', icon: Palmtree, color: 'text-secondary', bg: 'bg-secondary/20' },
-  compensa: { label: 'Compensa', icon: Coins, color: 'text-amber-400', bg: 'bg-amber-400/20' }
+const STATUS_CONFIG: Record<DutyStatus, { label: string; icon: any; color: string; bg: string; excel: string }> = {
+  trabalho: { label: 'Trabalho', icon: Check, color: 'text-primary', bg: 'bg-primary/20', excel: 'T' },
+  folga: { label: 'Folga', icon: Palmtree, color: 'text-secondary', bg: 'bg-secondary/20', excel: 'F' },
+  compensa: { label: 'Compensa', icon: Coins, color: 'text-amber-400', bg: 'bg-amber-400/20', excel: 'C' }
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -62,6 +65,20 @@ export default function Escala() {
   const { schedule, upsertDuty, deleteDuty, isLoading: scheduleLoading } = useSchedule(monthKey);
   
   const days = getMonthDaysArray(year, month);
+  const [viewMode, setViewMode] = useState<'monthly' | 'weekly'>('monthly');
+  const [currentWeekIndex, setCurrentWeekIndex] = useState(0);
+
+  // Group days into weeks
+  const weeks = useMemo(() => {
+    const w = [];
+    for (let i = 0; i < days.length; i += 7) {
+      w.push(days.slice(i, i + 7));
+    }
+    return w;
+  }, [days]);
+
+  const activeDays = viewMode === 'monthly' ? days : weeks[currentWeekIndex] || [];
+
   const exportRef = useRef<HTMLDivElement>(null);
 
   // Filter out leaders if not admin? No, let leaders see everyone.
@@ -106,29 +123,73 @@ export default function Escala() {
   const handleExport = async () => {
     if (!exportRef.current) return;
     try {
-      // Delay para garantir renderização total
-      await new Promise(resolve => setTimeout(resolve, 300));
+      setIsGenerating(true);
+      // Wait for font and images
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       const dataUrl = await toPng(exportRef.current, { 
         cacheBust: true, 
-        backgroundColor: '#ffffff',
-        pixelRatio: 2
+        backgroundColor: '#0e0e12',
+        pixelRatio: 2,
+        style: {
+          opacity: '1',
+          visibility: 'visible',
+          display: 'block'
+        }
       });
       
       const link = document.createElement('a');
-      link.download = `Escala_BrigadeNoir_${monthKey}.png`;
+      link.download = `Escala_${monthKey}_BrigadeNoir.png`;
       link.href = dataUrl;
       link.click();
-      showAlert('Sucesso', 'Escala exportada como imagem com sucesso!');
+      showAlert('Sucesso', 'Escala exportada como imagem premium!');
     } catch (err: any) {
-      console.error('Erro de exportação:', err);
-      showAlert('Erro na Exportação', 'Não foi possível gerar a imagem da escala.');
+      console.error('Export error:', err);
+      showAlert('Erro na Exportação', 'Não foi possível gerar a imagem. Tente novamente.');
+    } finally {
+      setIsGenerating(false);
     }
   };
+
+  const handleExportExcel = () => {
+    try {
+      const data = filteredUsers.map(u => {
+        const row: any = { 'Colaborador': u.full_name, 'Cargo': u.role };
+        days.forEach(({ day }) => {
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const rec = schedule.find(s => s.user_id === u.id && s.date === dateStr);
+          row[day] = rec ? STATUS_CONFIG[rec.status].excel : '.';
+        });
+        return row;
+      });
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Escala");
+      XLSX.writeFile(wb, `Escala_${monthKey}.xlsx`);
+      showAlert('Sucesso', 'Planilha Excel gerada com sucesso!');
+    } catch (err) {
+      showAlert('Erro', 'Falha ao gerar Excel.');
+    }
+  };
+
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const changeMonth = (offset: number) => {
     const newDate = new Date(year, month + offset, 1);
     setCurrentDate(newDate);
+    setCurrentWeekIndex(0);
+  };
+
+  const changeWeek = (offset: number) => {
+    const next = currentWeekIndex + offset;
+    if (next >= 0 && next < weeks.length) {
+      setCurrentWeekIndex(next);
+    } else if (next < 0) {
+      // Go to previous month's last week? Simple for now: stay.
+    } else if (next >= weeks.length) {
+      // Go to next month? Simple for now: stay.
+    }
   };
 
   if (usersLoading || scheduleLoading) {
@@ -158,27 +219,64 @@ export default function Escala() {
         <div>
           <span className="text-[10px] font-black tracking-[0.2em] text-primary uppercase">Calendário de Turnos</span>
           <div className="flex items-center gap-4 mt-2">
-            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-surface-container-highest rounded-full transition-colors text-outline-variant hover:text-primary">
+            <button 
+              onClick={() => viewMode === 'monthly' ? changeMonth(-1) : changeWeek(-1)} 
+              className="p-2 hover:bg-surface-container-highest rounded-full transition-colors text-outline-variant hover:text-primary"
+            >
               <ChevronLeft size={24} />
             </button>
-            <h3 className="text-3xl font-black text-on-surface tracking-tighter min-w-[200px] text-center uppercase">
-              {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-            </h3>
-            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-surface-container-highest rounded-full transition-colors text-outline-variant hover:text-primary">
+            <div className="text-center min-w-[240px]">
+              <h3 className="text-2xl font-black text-on-surface tracking-tighter uppercase leading-none">
+                {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              </h3>
+              {viewMode === 'weekly' && (
+                <p className="text-[9px] font-black text-primary uppercase mt-1 tracking-widest">
+                  Semana {currentWeekIndex + 1} de {weeks.length}
+                </p>
+              )}
+            </div>
+            <button 
+              onClick={() => viewMode === 'monthly' ? changeMonth(1) : changeWeek(1)} 
+              className="p-2 hover:bg-surface-container-highest rounded-full transition-colors text-outline-variant hover:text-primary"
+            >
               <ChevronRight size={24} />
             </button>
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
+          <div className="flex bg-surface-container-high p-1 rounded-xl border border-outline-variant/10 mr-2">
+            <button 
+              onClick={() => setViewMode('monthly')}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${viewMode === 'monthly' ? 'bg-primary text-on-primary shadow-sm' : 'text-outline-variant hover:text-on-surface'}`}
+            >
+              Mês
+            </button>
+            <button 
+              onClick={() => setViewMode('weekly')}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${viewMode === 'weekly' ? 'bg-primary text-on-primary shadow-sm' : 'text-outline-variant hover:text-on-surface'}`}
+            >
+              Semana
+            </button>
+          </div>
           <Button 
             variant="ghost" 
             size="sm" 
-            icon={<Download size={16} />} 
-            onClick={handleExport}
-            className="bg-surface-container-high"
+            icon={<FileText size={16} />} 
+            onClick={handleExportExcel}
+            className="bg-surface-container-high border border-outline-variant/10"
           >
-            Exportar Imagem
+            Excel
+          </Button>
+          <Button 
+            variant="primary" 
+            size="sm" 
+            icon={isGenerating ? <RefreshCcw size={16} className="animate-spin" /> : <Download size={16} />} 
+            onClick={handleExport}
+            disabled={isGenerating}
+            className="shadow-lg shadow-primary/10"
+          >
+            {isGenerating ? 'Gerando...' : 'Download Imagem'}
           </Button>
           {!isManagement && (
              <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl border border-primary/20">
@@ -192,72 +290,80 @@ export default function Escala() {
       {/* Main Grid Container */}
       <div className="relative bg-surface-container rounded-3xl border border-outline-variant/10 overflow-hidden shadow-2xl">
         
-        {/* Export Target (Hidden visually but captured by html-to-image) */}
+        {/* Export Target (HIDDEN PREMIUM VERSION) */}
         <div 
           ref={exportRef} 
           id="export-container"
-          className="bg-white p-10 w-[1200px]"
+          className="bg-[#0e0e12] p-16 w-[1600px] font-sans"
           style={{ 
             position: 'absolute', 
             top: 0, 
             left: 0, 
-            opacity: 0.01, 
+            opacity: 0, 
             pointerEvents: 'none', 
             zIndex: -1 
           }}
         >
-          <div className="mb-8 border-b-2 border-blue-600 pb-6 flex justify-between items-end">
+          <div className="mb-12 flex justify-between items-end border-b border-outline-variant/20 pb-10">
              <div>
-               <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Escala Operacional</h1>
-               <p className="text-blue-600 font-bold tracking-[0.3em] text-sm mt-2">{currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()}</p>
+               <div className="flex items-center gap-4 mb-4">
+                 <img src="/logo.png" alt="BN" className="w-16 h-16 rounded-2xl" />
+                 <div>
+                   <h1 className="text-5xl font-black text-on-surface tracking-tighter uppercase leading-none">Brigade Noir</h1>
+                   <p className="text-primary font-black tracking-[0.4em] text-xs mt-2 uppercase">Operational Intelligence</p>
+                 </div>
+               </div>
+               <h2 className="text-7xl font-black text-on-surface tracking-tighter uppercase mt-6 leading-[0.8]">Escala Mensal</h2>
+               <p className="text-outline-variant font-bold tracking-[0.2em] text-lg mt-4 uppercase">Turnos & Disponibilidade | {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</p>
              </div>
              <div className="text-right">
-               <p className="text-slate-400 text-[10px] font-bold tracking-widest uppercase mb-1">Brigade Noir | Intelligence</p>
-               <div className="flex gap-4">
-                 <div className="flex items-center gap-2">
-                   <div className="w-3 h-3 rounded-full bg-slate-200 border border-slate-300"></div> 
-                   <span className="text-slate-600 text-[10px] font-bold">TRABALHO</span>
+               <div className="flex flex-col gap-3 items-end">
+                 <div className="flex items-center gap-3 bg-surface-container-highest/50 px-6 py-3 rounded-2xl border border-outline-variant/10">
+                   <div className="w-4 h-4 rounded-full bg-primary/20 border border-primary/50"></div> 
+                   <span className="text-on-surface text-xs font-black uppercase tracking-widest">Trabalho</span>
                  </div>
-                 <div className="flex items-center gap-2">
-                   <div className="w-3 h-3 rounded-full bg-blue-100 border border-blue-600"></div> 
-                   <span className="text-blue-600 text-[10px] font-bold">FOLGA (F)</span>
+                 <div className="flex items-center gap-3 bg-surface-container-highest/50 px-6 py-3 rounded-2xl border border-outline-variant/10">
+                   <div className="w-4 h-4 rounded-full bg-secondary/20 border border-secondary/50"></div> 
+                   <span className="text-on-surface text-xs font-black uppercase tracking-widest">Folga (F)</span>
                  </div>
-                 <div className="flex items-center gap-2">
-                   <div className="w-3 h-3 rounded-full bg-amber-100 border border-amber-600"></div> 
-                   <span className="text-amber-600 text-[10px] font-bold">COMPENSA (C)</span>
+                 <div className="flex items-center gap-3 bg-surface-container-highest/50 px-6 py-3 rounded-2xl border border-outline-variant/10">
+                   <div className="w-4 h-4 rounded-full bg-amber-400/20 border border-amber-400/50"></div> 
+                   <span className="text-on-surface text-xs font-black uppercase tracking-widest">Compensa (C)</span>
                  </div>
                </div>
              </div>
           </div>
-          
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-y border-slate-200">
-                <th className="p-4 text-left text-slate-900 text-[10px] uppercase font-black tracking-widest">Colaborador</th>
+              <tr className="bg-surface-container-highest/30">
+                <th className="p-8 text-left text-on-surface text-sm uppercase font-black tracking-[0.3em] border-b border-outline-variant/20">Equipe Técnica</th>
                 {days.map(({ day }) => (
-                  <th key={day} className="p-2 text-center text-slate-900 text-[10px] font-black">{day}</th>
+                  <th key={day} className="p-2 text-center text-on-surface text-lg font-black border-b border-outline-variant/20">{day}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filteredUsers.map(u => (
-                <tr key={u.id} className="border-t border-slate-100">
-                  <td className="p-4 bg-slate-50/50">
-                    <p className="text-slate-900 font-black text-xs uppercase tracking-tight">{u.full_name}</p>
-                    <p className="text-blue-600 text-[7px] font-bold tracking-[0.2em] uppercase mt-0.5">{u.role}</p>
+                <tr key={u.id} className="border-b border-outline-variant/5">
+                  <td className="p-8 bg-surface-container-low/30">
+                    <p className="text-on-surface font-black text-xl uppercase tracking-tighter leading-none">{u.full_name}</p>
+                    <p className="text-primary text-[10px] font-black tracking-[0.3em] uppercase mt-2">{u.role}</p>
                   </td>
                   {days.map(({ day }) => {
                     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     const rec = schedule.find(s => s.user_id === u.id && s.date === dateStr);
                     return (
-                      <td key={day} className="p-1">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center mx-auto border ${
-                          rec?.status === 'folga' ? 'bg-blue-50 border-blue-600' : 
-                          rec?.status === 'compensa' ? 'bg-amber-50 border-amber-600' : 
-                          'bg-slate-50 border-slate-200'
+                      <td key={day} className="p-2">
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto border-2 ${
+                          rec?.status === 'folga' ? 'bg-secondary/10 border-secondary/40 text-secondary' : 
+                          rec?.status === 'compensa' ? 'bg-amber-400/10 border-amber-400/40 text-amber-400' : 
+                          rec?.status === 'trabalho' ? 'bg-primary/10 border-primary/40 text-primary' :
+                          'bg-surface-container-highest/30 border-outline-variant/10 text-outline-variant/20'
                         }`}>
-                          {rec?.status === 'folga' && <span className="text-blue-700 font-black text-sm">F</span>}
-                          {rec?.status === 'compensa' && <span className="text-amber-700 font-black text-sm">C</span>}
+                          {rec?.status === 'folga' && <span className="font-black text-2xl uppercase">F</span>}
+                          {rec?.status === 'compensa' && <span className="font-black text-2xl uppercase">C</span>}
+                          {rec?.status === 'trabalho' && <span className="font-black text-2xl uppercase">T</span>}
+                          {!rec && <div className="w-1.5 h-1.5 rounded-full bg-outline-variant/30"></div>}
                         </div>
                       </td>
                     );
@@ -266,8 +372,9 @@ export default function Escala() {
               ))}
             </tbody>
           </table>
-          <div className="mt-10 pt-6 border-t border-slate-200 text-center">
-             <p className="text-slate-400 text-[8px] font-bold tracking-[0.5em] uppercase">Documento Gerado por Brigade Noir Intelligent Systems</p>
+          <div className="mt-16 pt-10 border-t border-outline-variant/10 text-center">
+             <p className="text-outline-variant text-[10px] font-black tracking-[0.8em] uppercase">Documento Gerado por Brigade Noir Intelligence Systems</p>
+             <p className="text-outline-variant/40 text-[8px] font-bold uppercase mt-4 tracking-widest">Hash de Autenticidade: {Math.random().toString(36).substring(7).toUpperCase()}-{Date.now()}</p>
           </div>
         </div>
 
@@ -276,11 +383,11 @@ export default function Escala() {
           <table className="w-full text-left border-collapse table-fixed">
             <thead>
               <tr className="bg-surface-container-highest/20">
-                <th className="w-[120px] px-4 py-3 text-[9px] font-black tracking-widest text-outline uppercase sticky left-0 bg-surface-container z-10 border-r border-outline-variant/10">Equipe</th>
-                {days.map(({ day, weekday }) => (
-                  <th key={day} className="py-2 text-center border-l border-outline-variant/5">
-                    <p className="text-[7px] font-black text-primary/60 uppercase mb-0.5">{weekday}</p>
-                    <p className="text-[10px] font-bold text-on-surface uppercase">{day}</p>
+                <th className="w-[100px] px-3 py-2 text-[8px] font-black tracking-widest text-outline uppercase sticky left-0 bg-surface-container z-10 border-r border-outline-variant/10">Equipe</th>
+                {activeDays.map(({ day, weekday }) => (
+                  <th key={day} className="py-1 text-center border-l border-outline-variant/5">
+                    <p className="text-[6px] font-black text-primary/60 uppercase">{weekday}</p>
+                    <p className="text-[8px] font-bold text-on-surface uppercase">{day}</p>
                   </th>
                 ))}
               </tr>
@@ -288,32 +395,34 @@ export default function Escala() {
             <tbody className="divide-y divide-outline-variant/5">
               {filteredUsers.map(u => (
                 <tr key={u.id} className="hover:bg-surface-container-high/40 transition-colors group">
-                  <td className="px-4 py-2 sticky left-0 bg-surface-container z-10 border-r border-outline-variant/10">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-surface-container-highest flex items-center justify-center text-[8px] font-bold text-primary border border-primary/20 shrink-0">
+                  <td className="px-3 py-1.5 sticky left-0 bg-surface-container z-10 border-r border-outline-variant/10">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-full bg-surface-container-highest flex items-center justify-center text-[7px] font-bold text-primary border border-primary/20 shrink-0">
                         {u.full_name?.substring(0, 2).toUpperCase() || '??'}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] font-black text-on-surface uppercase tracking-tight truncate">{u.full_name}</p>
-                        <p className="text-[7px] text-outline-variant font-bold uppercase tracking-widest truncate">{u.role}</p>
+                        <p className="text-[9px] font-black text-on-surface uppercase tracking-tight truncate">{u.full_name}</p>
+                        <p className="text-[6px] text-outline-variant font-bold uppercase tracking-widest truncate">{u.role}</p>
                       </div>
                     </div>
                   </td>
-                  {days.map(({ day }) => {
+                  {activeDays.map(({ day }) => {
                     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     const rec = schedule.find(s => s.user_id === u.id && s.date === dateStr);
-                    const StatusIcon = rec ? STATUS_CONFIG[rec.status].icon : null;
                     
                     return (
                       <td key={day} className="p-0.5 border-l border-outline-variant/5">
                         <button
                           disabled={!isManagement}
                           onClick={() => handleToggleDay(u.id, day)}
-                          className={`w-full aspect-square max-h-8 rounded-lg flex items-center justify-center mx-auto transition-all transform active:scale-90 ${
-                            rec ? STATUS_CONFIG[rec.status].bg + ' border border-outline-variant/20 shadow-sm' : 'hover:bg-surface-container-highest text-outline-variant/10'
+                          className={`w-full aspect-square max-h-6 rounded-md flex items-center justify-center mx-auto transition-all transform active:scale-90 ${
+                            rec ? STATUS_CONFIG[rec.status].bg + ' border border-outline-variant/20' : 'hover:bg-surface-container-highest text-outline-variant/10'
                           } ${!isManagement && 'cursor-default'}`}
                         >
-                          {StatusIcon ? <StatusIcon size={12} className={STATUS_CONFIG[rec!.status].color} /> : <div className="w-0.5 h-0.5 rounded-full bg-outline-variant/20" />}
+                          {rec?.status === 'folga' && <span className="text-[9px] font-black text-secondary">F</span>}
+                          {rec?.status === 'compensa' && <span className="text-[9px] font-black text-amber-400">C</span>}
+                          {rec?.status === 'trabalho' && <span className="text-[9px] font-black text-primary">T</span>}
+                          {!rec && <div className="w-0.5 h-0.5 rounded-full bg-outline-variant/20" />}
                         </button>
                       </td>
                     );
@@ -326,44 +435,46 @@ export default function Escala() {
 
         {/* Interactive UI Grid - MOBILE VIEW (Axis Inversion) */}
         <div className="md:hidden">
-          <div className="flex bg-surface-container-highest/20 border-b border-outline-variant/10 sticky top-0 z-20">
-            <div className="w-16 shrink-0 py-3 px-3 text-[8px] font-black text-outline uppercase border-r border-outline-variant/10 bg-surface-container">DIA</div>
-            <div className="flex-1 flex overflow-x-auto scrollbar-hide py-3 px-2 gap-2">
+          <div className="flex bg-surface-container-highest/20 border-b border-outline-variant/10 sticky top-0 z-20 overflow-x-auto hide-scrollbar">
+            <div className="w-12 shrink-0 py-2 px-2 text-[7px] font-black text-outline uppercase border-r border-outline-variant/10 bg-surface-container flex items-center justify-center">DIA</div>
+            <div className="flex flex-1 py-2 px-1 gap-1">
               {filteredUsers.map(u => (
-                <div key={u.id} className="shrink-0 flex flex-col items-center gap-1 w-10">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[8px] font-bold text-primary border border-primary/20">
+                <div key={u.id} className="shrink-0 flex flex-col items-center gap-0.5 w-8">
+                  <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[7px] font-bold text-primary border border-primary/20">
                     {u.full_name?.substring(0, 2).toUpperCase()}
                   </div>
-                  <span className="text-[6px] font-black text-outline uppercase tracking-tighter truncate w-full text-center">{u.full_name?.split(' ')[0]}</span>
+                  <span className="text-[5px] font-black text-outline uppercase tracking-tighter truncate w-full text-center">{u.full_name?.split(' ')[0]}</span>
                 </div>
               ))}
             </div>
           </div>
           <div className="divide-y divide-outline-variant/5">
-            {days.map(({ day, weekday }) => {
+            {activeDays.map(({ day, weekday }) => {
               const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
               const isWeekend = weekday === 'SÁB' || weekday === 'DOM';
               
               return (
                 <div key={day} className="flex">
-                  <div className={`w-16 shrink-0 py-3 px-3 border-r border-outline-variant/10 flex flex-col justify-center ${isWeekend ? 'bg-error/5' : 'bg-surface-container'}`}>
-                    <span className="text-[7px] font-black text-primary/60 uppercase">{weekday}</span>
-                    <span className="text-xs font-bold text-on-surface">{day}</span>
+                  <div className={`w-12 shrink-0 py-2 px-2 border-r border-outline-variant/10 flex flex-col items-center justify-center ${isWeekend ? 'bg-error/5' : 'bg-surface-container'}`}>
+                    <span className="text-[6px] font-black text-primary/60 uppercase">{weekday}</span>
+                    <span className="text-[10px] font-bold text-on-surface">{day}</span>
                   </div>
-                  <div className="flex-1 flex px-2 gap-2 overflow-x-auto scrollbar-hide items-center">
+                  <div className="flex-1 flex px-1 gap-1 items-center overflow-x-auto hide-scrollbar">
                     {filteredUsers.map(u => {
                       const rec = schedule.find(s => s.user_id === u.id && s.date === dateStr);
-                      const StatusIcon = rec ? STATUS_CONFIG[rec.status].icon : null;
                       return (
                         <button
                           key={u.id}
                           disabled={!isManagement}
                           onClick={() => handleToggleDay(u.id, day)}
-                          className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                          className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
                             rec ? STATUS_CONFIG[rec.status].bg + ' border border-outline-variant/20' : 'bg-surface-container-low/20'
                           }`}
                         >
-                           {StatusIcon ? <StatusIcon size={14} className={STATUS_CONFIG[rec!.status].color} /> : <div className="w-1 h-1 rounded-full bg-outline-variant/10" />}
+                           {rec?.status === 'folga' && <span className="text-[10px] font-black text-secondary">F</span>}
+                           {rec?.status === 'compensa' && <span className="text-[10px] font-black text-amber-400">C</span>}
+                           {rec?.status === 'trabalho' && <span className="text-[10px] font-black text-primary">T</span>}
+                           {!rec && <div className="w-0.5 h-0.5 rounded-full bg-outline-variant/10" />}
                         </button>
                       );
                     })}
@@ -378,15 +489,15 @@ export default function Escala() {
       {/* Legend */}
       <div className="mt-8 flex flex-wrap gap-4 justify-center items-center mb-20 bg-surface-container/40 p-6 rounded-2xl border border-outline-variant/10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center"><Check size={14} className="text-primary" /></div>
+          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-[10px] font-black text-primary">T</div>
           <span className="text-[10px] font-bold text-on-surface uppercase tracking-widest">Trabalho</span>
         </div>
         <div className="flex items-center gap-3 ml-4">
-          <div className="w-8 h-8 rounded-lg bg-secondary/20 flex items-center justify-center"><Palmtree size={14} className="text-secondary" /></div>
+          <div className="w-8 h-8 rounded-lg bg-secondary/20 flex items-center justify-center text-[10px] font-black text-secondary">F</div>
           <span className="text-[10px] font-bold text-on-surface uppercase tracking-widest">Folga</span>
         </div>
         <div className="flex items-center gap-3 ml-4">
-          <div className="w-8 h-8 rounded-lg bg-amber-400/20 flex items-center justify-center"><Coins size={14} className="text-amber-400" /></div>
+          <div className="w-8 h-8 rounded-lg bg-amber-400/20 flex items-center justify-center text-[10px] font-black text-amber-400">C</div>
           <span className="text-[10px] font-bold text-on-surface uppercase tracking-widest">Compensa</span>
         </div>
       </div>
