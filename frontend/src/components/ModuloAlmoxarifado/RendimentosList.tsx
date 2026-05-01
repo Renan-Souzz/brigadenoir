@@ -18,22 +18,20 @@ import {
 
 export default function RendimentosList() {
   const { data: rendimentos = [], isLoading, deleteRendimento, upsertRendimento, isUpdating } = useInsumoRendimentos();
-  const { insumos = [] } = useInsumos('almoxarifado');
-  const { isManagement } = useAuth();
-  const { showConfirm, showAlert } = useModal();
+  const { createInsumo } = useInsumos('almoxarifado');
 
   const [isCreating, setIsCreating] = useState(false);
-  const [selectedInsumoId, setSelectedInsumoId] = useState('');
+  const [nomeProduto, setNomeProduto] = useState('');
+  const [categoria, setCategoria] = useState('proteinas');
   const [dataProc, setDataProc] = useState(formatLocalDate());
+  const [validade, setValidade] = useState('');
   const [pesoBruto, setPesoBruto] = useState('');
   const [pesoLiquido, setPesoLiquido] = useState('');
   const [porcoes, setPorcoes] = useState('');
 
-  const proteinas = insumos.filter(i => i.categoria === 'proteinas' || !i.categoria); // fallback to all if needed, but should be proteinas
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedInsumoId || !pesoBruto || !pesoLiquido || !porcoes) {
+    if (!nomeProduto || !pesoBruto || !pesoLiquido || !porcoes || !validade) {
       showAlert('Campos Obrigatórios', 'Preencha todos os campos do teste de rendimento.');
       return;
     }
@@ -52,20 +50,34 @@ export default function RendimentosList() {
     }
 
     try {
+      // 1. Cria o insumo já processado/limpo no Almoxarifado
+      const novoInsumo = await createInsumo({
+        name: nomeProduto.toUpperCase(),
+        categoria: categoria,
+        quantity: pl,
+        unit: 'Kg',
+        expiry_date: validade,
+        station: 'almoxarifado'
+      });
+
+      // 2. Registra o teste de quebra associado ao insumo criado
       await upsertRendimento({
-        insumo_id: selectedInsumoId,
+        insumo_id: novoInsumo.id,
         data_processamento: dataProc,
         peso_bruto: pb,
         peso_liquido: pl,
         peso_perda: pb - pl,
         rendimento_porcoes: pp
       });
+      
       setIsCreating(false);
-      setSelectedInsumoId('');
+      setNomeProduto('');
+      setCategoria('proteinas');
+      setValidade('');
       setPesoBruto('');
       setPesoLiquido('');
       setPorcoes('');
-      showAlert('Sucesso', 'Teste de quebra salvo com sucesso!');
+      showAlert('Sucesso', 'Teste de quebra registrado e produto adicionado ao estoque!');
     } catch (error: any) {
       showAlert('Erro', error.message || 'Falha ao salvar teste de quebra.');
     }
@@ -103,24 +115,29 @@ export default function RendimentosList() {
           
           <div className="flex items-center gap-2 mb-6 text-primary">
             <Calculator size={18} />
-            <h4 className="text-xs font-black uppercase tracking-widest">Registrar Processamento (Limpeza)</h4>
+            <h4 className="text-xs font-black uppercase tracking-widest">Registrar Processamento e Enviar para Estoque</h4>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="md:col-span-2">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2">Produto Final (Ex: Mignon Limpo)</label>
+              <input type="text" required value={nomeProduto} onChange={e => setNomeProduto(e.target.value)} placeholder="Nome do Insumo Limpo" className="w-full bg-surface-container p-3 rounded-xl border border-outline-variant/20 text-sm focus:border-primary uppercase font-bold text-on-surface" />
+            </div>
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2">Produto (Proteína)</label>
-              <select required value={selectedInsumoId} onChange={e => setSelectedInsumoId(e.target.value)} className="w-full bg-surface-container p-3 rounded-xl border border-outline-variant/20 text-sm focus:border-primary">
-                <option value="">Selecione o Insumo</option>
-                {proteinas.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              <label className="block text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2">Categoria</label>
+              <select required value={categoria} onChange={e => setCategoria(e.target.value)} className="w-full bg-surface-container p-3 rounded-xl border border-outline-variant/20 text-sm focus:border-primary">
+                <option value="proteinas">Proteínas</option>
+                <option value="molhos">Molhos</option>
+                <option value="porcoes">Porções Fracionadas</option>
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2">Data do Processamento</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2">Data Processamento</label>
               <input type="date" required value={dataProc} onChange={e => setDataProc(e.target.value)} className="w-full bg-surface-container p-3 rounded-xl border border-outline-variant/20 text-sm focus:border-primary" />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div>
               <label className="block text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2">Peso Bruto (Kg)</label>
               <input type="number" step="0.001" required value={pesoBruto} onChange={e => setPesoBruto(e.target.value)} placeholder="Ex: 10.5" className="w-full bg-surface-container p-3 rounded-xl border border-outline-variant/20 text-sm focus:border-primary" />
@@ -133,11 +150,15 @@ export default function RendimentosList() {
               <label className="block text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2">Rendimento (Porções)</label>
               <input type="number" step="0.1" required value={porcoes} onChange={e => setPorcoes(e.target.value)} placeholder="Ex: 40" className="w-full bg-surface-container p-3 rounded-xl border border-outline-variant/20 text-sm focus:border-primary" />
             </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2">Validade</label>
+              <input type="date" required value={validade} onChange={e => setValidade(e.target.value)} className="w-full bg-surface-container p-3 rounded-xl border border-outline-variant/20 text-sm focus:border-primary" />
+            </div>
           </div>
 
           <div className="flex justify-end pt-4 border-t border-outline-variant/10">
             <button type="submit" disabled={isUpdating} className="flex items-center gap-2 px-6 py-3 bg-primary text-on-primary rounded-xl font-black uppercase text-xs hover:bg-primary/90 disabled:opacity-50">
-              {isUpdating ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar Rendimento
+              {isUpdating ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar Teste & Adicionar Estoque
             </button>
           </div>
         </form>
