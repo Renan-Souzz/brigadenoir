@@ -1,9 +1,11 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Analytics } from '@vercel/analytics/react';
+import { inject } from '@vercel/analytics';
 import App from './App.tsx';
 import './index.css';
+
+inject();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,7 +20,6 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />
-      <Analytics />
     </QueryClientProvider>
   </StrictMode>,
 );

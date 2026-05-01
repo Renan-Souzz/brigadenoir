@@ -13,7 +13,6 @@ export default defineConfig(({mode}) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
-        '__vite-optional-peer-dep:react:@vercel/analytics': 'react',
       },
     },
     build: {
