@@ -12,6 +12,7 @@ import { useTasks } from '../hooks/useTasks';
 import { useInsumos } from '../hooks/useInsumos';
 import { useDishes } from '../hooks/useDishes';
 import { useSchedule } from '../hooks/useSchedule';
+import { usePax } from '../hooks/usePax';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -272,6 +273,69 @@ function AlertCard({ icon, title, desc, footer, borderColor, onClick }: any) {
   );
 }
 
+function MiniDonut({ value, size = 56, stroke = 5, color = 'var(--md-sys-color-primary)' }: { value: number; size?: number; stroke?: number; color?: string }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = Math.min(Math.max(value, 0), 100);
+  return (
+    <svg width={size} height={size} className="-rotate-90">
+      <circle cx={size/2} cy={size/2} r={r} fill="transparent" stroke="currentColor" strokeWidth={stroke} className="text-surface-container-highest/50" />
+      <circle cx={size/2} cy={size/2} r={r} fill="transparent" stroke={color} strokeWidth={stroke} strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} strokeLinecap="round" className="transition-all duration-700" />
+    </svg>
+  );
+}
+
+function StatsRow({ weekPax, monthPax, efficiency, stationName, isManagement, onClick }: { weekPax: number; monthPax: number; efficiency: number; stationName: string; isManagement: boolean; onClick?: () => void }) {
+  const effColor = efficiency >= 80 ? 'var(--md-sys-color-primary)' : efficiency >= 50 ? 'var(--md-sys-color-secondary)' : 'var(--md-sys-color-error)';
+  const effTextColor = efficiency >= 80 ? 'text-primary' : efficiency >= 50 ? 'text-secondary' : 'text-error';
+
+  return (
+    <div className="grid grid-cols-3 gap-3">
+      {/* PAX Semana */}
+      <div className="bg-surface-container-low/40 backdrop-blur-xl border border-outline-variant/10 rounded-2xl p-4 flex items-center gap-3">
+        <div className="relative">
+          <MiniDonut value={Math.min(weekPax / 5, 100)} size={48} color="var(--md-sys-color-primary)" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Icons.Utensils size={14} className="text-primary" />
+          </div>
+        </div>
+        <div>
+          <p className="text-lg font-black text-on-surface tracking-tighter">{weekPax}</p>
+          <p className="text-[8px] font-black text-outline-variant uppercase tracking-widest">PAX Semana</p>
+        </div>
+      </div>
+
+      {/* PAX Mês */}
+      <div className="bg-surface-container-low/40 backdrop-blur-xl border border-outline-variant/10 rounded-2xl p-4 flex items-center gap-3">
+        <div className="relative">
+          <MiniDonut value={Math.min(monthPax / 20, 100)} size={48} color="var(--md-sys-color-secondary)" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Icons.Users size={14} className="text-secondary" />
+          </div>
+        </div>
+        <div>
+          <p className="text-lg font-black text-on-surface tracking-tighter">{monthPax}</p>
+          <p className="text-[8px] font-black text-outline-variant uppercase tracking-widest">PAX Mês</p>
+        </div>
+      </div>
+
+      {/* Efficiency */}
+      <div onClick={onClick} className="bg-surface-container-low/40 backdrop-blur-xl border border-outline-variant/10 rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:border-primary/20 transition-all">
+        <div className="relative">
+          <MiniDonut value={efficiency} size={48} color={effColor} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className={`text-[10px] font-black ${effTextColor}`}>{efficiency}%</span>
+          </div>
+        </div>
+        <div>
+          <p className={`text-lg font-black tracking-tighter ${effTextColor}`}>{isManagement ? 'Geral' : stationName}</p>
+          <p className="text-[8px] font-black text-outline-variant uppercase tracking-widest">Eficiência</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -293,12 +357,15 @@ export default function Dashboard() {
 
   const mySchedule = useMemo(() => allSchedule.filter(s => s.user_id === profile?.id), [allSchedule, profile?.id]);
 
-  // Data for alerts
+  // Data
   const { data: profiles = [] } = useProfiles();
   const monthStartStr = useMemo(() => { const d = new Date(); return formatLocalDate(new Date(d.getFullYear(), d.getMonth(), 1)); }, []);
   const { tasks = [] } = useTasks();
   const { insumos = [] } = useInsumos();
   const { data: dishes = [] } = useDishes();
+
+  // PAX
+  const { data: paxData = [] } = usePax(monthStartStr);
 
   const greeting = useMemo(() => {
     const h = new Date().getHours();
@@ -337,6 +404,35 @@ export default function Dashboard() {
     return t.length;
   }, [tasks, isManagement, profile]);
 
+  // PAX Stats
+  const paxStats = useMemo(() => {
+    const { start: weekStart } = getCulinaryWeekRange();
+    const weekStartStr = formatLocalDate(weekStart);
+    const weekPax = paxData.filter((p: any) => p.date >= weekStartStr).reduce((a: number, p: any) => a + p.lunch_pax + p.dinner_pax, 0);
+    const monthPax = paxData.reduce((a: number, p: any) => a + p.lunch_pax + p.dinner_pax, 0);
+    return { weekPax, monthPax };
+  }, [paxData]);
+
+  // Efficiency
+  const efficiency = useMemo(() => {
+    const stationNames = ['saucier', 'garde_manger', 'entremetier', 'rotisseur', 'poissonier', 'patissier', 'almoxarifado'];
+    if (isManagement) {
+      const all = stationNames.map(s => {
+        const st = tasks.filter(t => t.station === s);
+        const si = insumos.filter(i => i.station === s);
+        return calculateStationEfficiency(si, st);
+      });
+      const avg = all.length > 0 ? Math.round(all.reduce((a, r) => a + r.score, 0) / all.length) : 0;
+      return avg;
+    } else {
+      const st = tasks.filter(t => t.station === profile?.station);
+      const si = insumos.filter(i => i.station === profile?.station);
+      return calculateStationEfficiency(si, st).score;
+    }
+  }, [tasks, insumos, isManagement, profile]);
+
+  const stationLabel = profile?.station ? profile.station.charAt(0).toUpperCase() + profile.station.slice(1).replace('_', ' ') : 'Geral';
+
   return (
     <PageLayout>
       <PageHeader hasNotification />
@@ -355,6 +451,9 @@ export default function Dashboard() {
 
         {/* Quick Links */}
         <QuickLinks setActiveTab={setActiveTab} pendingTasks={pendingTasks} alertCount={alerts.length} />
+
+        {/* Stats Row - PAX + Efficiency Donuts */}
+        <StatsRow weekPax={paxStats.weekPax} monthPax={paxStats.monthPax} efficiency={efficiency} stationName={stationLabel} isManagement={isManagement} onClick={() => setActiveTab('insumos')} />
 
         {/* Management: Team Folgas */}
         {isManagement && <TeamFolgasCard profiles={profiles} schedule={allSchedule} />}
