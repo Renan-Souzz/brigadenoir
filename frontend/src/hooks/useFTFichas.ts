@@ -50,9 +50,10 @@ export function useFTFichas() {
         .from('ft_fichas')
         .select(`
           *,
+          ft_ficha_complementos(*),
           ft_ficha_ingredientes(
             pb_gramas,
-            insumo:ft_insumos(preco_unitario_base)
+            insumo:ft_insumos(nome, preco_unitario_base, acucares_adicionados_g, sodio_mg, gordura_saturada_g, is_liquid)
           )
         `)
         .order('nome');
@@ -62,9 +63,15 @@ export function useFTFichas() {
       // Normalizar para facilitar o cálculo no componente
       return data.map((f: any) => ({
         ...f,
+        complementos: f.ft_ficha_complementos?.[0] || null,
         ingredientes: f.ft_ficha_ingredientes?.map((i: any) => ({
           pb_gramas: i.pb_gramas,
-          preco_unitario_base: i.insumo?.preco_unitario_base || 0
+          preco_unitario_base: i.insumo?.preco_unitario_base || 0,
+          insumo_nome: i.insumo?.nome,
+          acucares_adicionados_g: i.insumo?.acucares_adicionados_g || 0,
+          sodio_mg: i.insumo?.sodio_mg || 0,
+          gordura_saturada_g: i.insumo?.gordura_saturada_g || 0,
+          is_liquid: i.insumo?.is_liquid || false
         }))
       })) as FTFicha[];
     }

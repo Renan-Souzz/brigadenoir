@@ -23,6 +23,7 @@ import Button from '../shared/Button';
 import { useModal } from '../../contexts/ModalContext';
 import { useFTFichas, FTFicha } from '../../hooks/useFTFichas';
 import FichaEditor from './FichaEditor';
+import { calcularResumoFicha, verificarAlertasAnvisa, detectarAlergenos } from '../../utils/engineFT';
 
 const CATEGORIAS = ['Entrada', 'Prato Principal', 'Sobremesa', 'Bebida', 'Base / Molho'];
 
@@ -34,14 +35,31 @@ export default function FichaTecnicaList() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  // 1. Helpers for CMV Calculation in List
+  // 1. Helpers for Calculations in List
   const calculateFichaFinance = (ficha: FTFicha) => {
-    const custoTotal = ficha.ingredientes?.reduce((acc, ing) => {
-      return acc + (ing.pb_gramas * (ing.preco_unitario_base || 0));
-    }, 0) || 0;
-    const custoPorcao = custoTotal / (ficha.rendimento_total || 1);
-    const cmv = ficha.preco_venda > 0 ? (custoPorcao / ficha.preco_venda) * 100 : 0;
-    return { custoPorcao, cmv };
+    // Fill required dummy values if needed by engineFT
+    const ingredientesEngine = (ficha.ingredientes || []).map((i: any) => ({
+      ...i,
+      fc: i.fc || 1, ir: i.ir || 1, ia: i.ia || 1, icd: i.icd || 1
+    }));
+    
+    const resumo = calcularResumoFicha(ingredientesEngine, ficha.rendimento_total || 1, ficha.preco_venda || 0);
+    const alergenos = detectarAlergenos(ficha.ingredientes || []);
+    
+    const isLiquid = ficha.categoria === 'Bebida' || ficha.categoria === 'Base / Molho';
+    const alertasAnvisa = verificarAlertasAnvisa({
+      acucar: resumo.nutricao.acucar,
+      sodio: resumo.nutricao.sodio,
+      gordura: resumo.nutricao.gordura,
+      pesoTotal: resumo.pesoTotalPL
+    }, isLiquid);
+
+    return { 
+      custoPorcao: resumo.custoPorPorcao, 
+      cmv: resumo.cmv,
+      alergenos,
+      alertasAnvisa
+    };
   };
 
   // 2. Computed Stats & Filtering
@@ -213,11 +231,23 @@ export default function FichaTecnicaList() {
                       {isCritical && <AlertTriangle size={20} className="text-error animate-pulse-subtle" />}
                     </div>
 
-                    <h4 className="text-xl font-black text-on-surface uppercase tracking-tight mb-auto leading-tight group-hover:text-primary transition-colors duration-300">
+                    <h4 className="text-xl font-black text-on-surface uppercase tracking-tight mb-2 leading-tight group-hover:text-primary transition-colors duration-300">
                       {f.nome}
                     </h4>
+
+                    {/* Alertas RDC / Alérgenos */}
+                    <div className="flex flex-wrap gap-1.5 mb-auto">
+                      {finance.alertasAnvisa.altoAcucar && <span className="px-2 py-0.5 bg-black text-white text-[8px] font-black uppercase rounded">Alto Açúcar</span>}
+                      {finance.alertasAnvisa.altoSodio && <span className="px-2 py-0.5 bg-black text-white text-[8px] font-black uppercase rounded">Alto Sódio</span>}
+                      {finance.alertasAnvisa.altoGordura && <span className="px-2 py-0.5 bg-black text-white text-[8px] font-black uppercase rounded">Alta Gordura</span>}
+                      {finance.alergenos.map(a => (
+                        <span key={a} className="px-2 py-0.5 bg-error/10 text-error text-[8px] font-black uppercase rounded" title={`Alérgeno: ${a}`}>
+                          {a}
+                        </span>
+                      ))}
+                    </div>
                     
-                    <div className="grid grid-cols-2 gap-6 pt-6 mt-6 border-t border-outline-variant/10">
+                    <div className="grid grid-cols-2 gap-6 pt-6 mt-4 border-t border-outline-variant/10">
                       <div>
                          <span className="text-[9px] font-black uppercase text-outline-variant/60 block mb-1">Preço Venda</span>
                          <span className="text-sm font-black text-on-surface">R$ {f.preco_venda?.toFixed(2) || '0,00'}</span>

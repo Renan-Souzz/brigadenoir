@@ -25,7 +25,7 @@ import PageHeader from '../shared/PageHeader';
 import Button from '../shared/Button';
 import { useFTFichas, FTFicha, FTFichaIngrediente, FTFichaComplemento } from '../../hooks/useFTFichas';
 import { useFTInsumos } from '../../hooks/useFTInsumos';
-import { calcularPLFinal, calcularCustoIngrediente, calcularResumoFicha, verificarAlertasAnvisa } from '../../utils/engineFT';
+import { calcularPLFinal, calcularCustoIngrediente, calcularResumoFicha, verificarAlertasAnvisa, detectarAlergenos } from '../../utils/engineFT';
 import { useModal } from '../../contexts/ModalContext';
 import { exportToExcel } from '../../services/exportService';
 import { syncToGoogleSheets } from '../../services/googleSheetsService';
@@ -115,6 +115,10 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
       pesoTotal: resumo.pesoTotalPL
     }, isLiquid);
   }, [resumo, categoria]);
+
+  const alergenosDetectados = useMemo(() => {
+    return detectarAlergenos(ingredientes);
+  }, [ingredientes]);
 
   const handleAddIngrediente = () => {
     setIngredientes([...ingredientes, { 
@@ -243,7 +247,7 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
               ingredientes,
               financeiro: { ...resumo, precoSugerido: resumo.precoSugerido(cmvIdeal) },
               producao: { passos: complementos.observacoes },
-              rotulagem: { alergenos: [], gluten: complementos.contem_gluten ? 'SIM' : 'NÃO', lactose: complementos.contem_lactose ? 'SIM' : 'NÃO', validade: `${complementos.validade_dias} dias`, conservacao: complementos.conservacao }
+              rotulagem: { alergenos: alergenosDetectados, gluten: complementos.contem_gluten ? 'SIM' : 'NÃO', lactose: complementos.contem_lactose ? 'SIM' : 'NÃO', validade: `${complementos.validade_dias} dias`, conservacao: complementos.conservacao }
             })}
           >
             Excel
@@ -260,7 +264,7 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                   ingredientes,
                   financeiro: { ...resumo, precoSugerido: resumo.precoSugerido(cmvIdeal) },
                   producao: { passos: complementos.observacoes },
-                  rotulagem: { alergenos: [], gluten: complementos.contem_gluten ? 'SIM' : 'NÃO', lactose: complementos.contem_lactose ? 'SIM' : 'NÃO', validade: `${complementos.validade_dias} dias`, conservacao: complementos.conservacao }
+                  rotulagem: { alergenos: alergenosDetectados, gluten: complementos.contem_gluten ? 'SIM' : 'NÃO', lactose: complementos.contem_lactose ? 'SIM' : 'NÃO', validade: `${complementos.validade_dias} dias`, conservacao: complementos.conservacao }
                 });
                 showAlert('Sucesso', 'Planilha sincronizada com seu Google Drive!');
               } catch (err: any) {
@@ -439,18 +443,18 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                     <ShieldAlert size={18} />
                   </div>
-                  <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface">Conformidade RDC 429/2020</h4>
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface">Conformidade RDC 429 & RDC 26</h4>
                 </div>
                 
                 {/* Alertas ANVISA Premium */}
                 <div className="space-y-6 flex-1">
-                  {(alertasAnvisa.altoAcucar || alertasAnvisa.altoSodio) ? (
+                  {(alertasAnvisa.altoAcucar || alertasAnvisa.altoSodio || alertasAnvisa.altoGordura || alergenosDetectados.length > 0) ? (
                     <div className="space-y-4">
                       {alertasAnvisa.altoAcucar && (
                         <div className="bg-black text-white p-6 rounded-[24px] flex items-center gap-6 border border-white/10 shadow-2xl animate-pulse-subtle">
                           <div className="w-14 h-14 shrink-0 flex items-center justify-center bg-white text-black rounded-2xl font-black text-2xl shadow-xl">!</div>
                           <div>
-                            <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">ALERTA ANVISA</div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">ALERTA RDC 429</div>
                             <div className="text-xl font-black uppercase tracking-tight">ALTO EM AÇÚCAR</div>
                           </div>
                         </div>
@@ -459,8 +463,31 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                         <div className="bg-black text-white p-6 rounded-[24px] flex items-center gap-6 border border-white/10 shadow-2xl animate-pulse-subtle">
                           <div className="w-14 h-14 shrink-0 flex items-center justify-center bg-white text-black rounded-2xl font-black text-2xl shadow-xl">!</div>
                           <div>
-                            <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">ALERTA ANVISA</div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">ALERTA RDC 429</div>
                             <div className="text-xl font-black uppercase tracking-tight">ALTO EM SÓDIO</div>
+                          </div>
+                        </div>
+                      )}
+                      {alertasAnvisa.altoGordura && (
+                        <div className="bg-black text-white p-6 rounded-[24px] flex items-center gap-6 border border-white/10 shadow-2xl animate-pulse-subtle">
+                          <div className="w-14 h-14 shrink-0 flex items-center justify-center bg-white text-black rounded-2xl font-black text-2xl shadow-xl">!</div>
+                          <div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">ALERTA RDC 429</div>
+                            <div className="text-xl font-black uppercase tracking-tight">ALTO EM GORDURA SAT.</div>
+                          </div>
+                        </div>
+                      )}
+                      {alergenosDetectados.length > 0 && (
+                        <div className="bg-error/10 text-error p-6 rounded-[24px] flex items-start gap-6 border border-error/20 shadow-2xl">
+                          <div className="w-14 h-14 shrink-0 flex items-center justify-center bg-error text-white rounded-2xl font-black text-2xl shadow-xl"><AlertTriangle size={24} /></div>
+                          <div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">ALERTA RDC 26 (ALÉRGICOS)</div>
+                            <div className="text-sm font-black uppercase tracking-tight mb-2">CONTÉM:</div>
+                            <div className="flex flex-wrap gap-2">
+                              {alergenosDetectados.map(a => (
+                                <span key={a} className="px-3 py-1 bg-error/20 rounded-lg text-xs font-bold">{a}</span>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -471,7 +498,7 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                         <CheckCircle2 className="text-primary" size={48} />
                       </div>
                       <span className="text-[11px] font-black text-primary uppercase tracking-[0.3em] mb-2">Selagem Técnica Limpa</span>
-                      <p className="text-[10px] font-medium text-outline-variant uppercase">Conforme limites da RDC 429</p>
+                      <p className="text-[10px] font-medium text-outline-variant uppercase">Livre de alertas RDC 429 e Alérgenos principais</p>
                     </div>
                   )}
                 </div>

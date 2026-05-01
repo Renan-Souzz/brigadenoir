@@ -27,6 +27,8 @@ import Button from './shared/Button';
 
 // Hooks
 import { useDishes, Dish } from '../hooks/useDishes';
+import { useFTFichas } from '../hooks/useFTFichas';
+import { calcularResumoFicha, verificarAlertasAnvisa, detectarAlergenos } from '../utils/engineFT';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -55,6 +57,8 @@ export default function MenuPrincipal() {
     updatePorcao,
     refetch 
   } = useDishes();
+
+  const { fichas } = useFTFichas();
   
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState(searchFilter);
@@ -330,6 +334,36 @@ export default function MenuPrincipal() {
                         </div>
                         <div className="p-5">
                           <h4 className="text-lg font-black text-on-surface uppercase tracking-tight group-hover:text-primary transition-colors">{dish.title}</h4>
+                          
+                          {/* Cross-reference FTFichas para exibir Alérgenos e RDC */}
+                          {(() => {
+                            const fichaMatch = fichas.find(f => f.nome.toLowerCase() === dish.title.toLowerCase());
+                            if (!fichaMatch) return null;
+                            const alergenos = detectarAlergenos(fichaMatch.ingredientes || []);
+                            
+                            // Também podemos exibir glúten/lactose marcados manualmente na ficha
+                            const manualGluten = fichaMatch.complementos?.contem_gluten;
+                            const manualLactose = fichaMatch.complementos?.contem_lactose;
+
+                            const badges = [];
+                            if (manualGluten && !alergenos.includes('Glúten')) badges.push('Glúten');
+                            if (manualLactose && !alergenos.includes('Lactose/Leite')) badges.push('Lactose/Leite');
+
+                            const allAlergenos = [...new Set([...alergenos, ...badges])];
+
+                            if (allAlergenos.length === 0) return null;
+
+                            return (
+                              <div className="flex flex-wrap gap-1 mt-2 mb-1">
+                                {allAlergenos.map(a => (
+                                  <span key={a} className="px-1.5 py-0.5 bg-error/10 text-error text-[8px] font-black uppercase rounded" title={`Atenção Alérgicos: Contém ${a}`}>
+                                    {a}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
+
                           <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{dish.description}</p>
                           <div className="flex items-center justify-between mt-4 pt-4 border-t border-outline-variant/10">
                             <span className="px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] text-primary flex items-center gap-1.5"><Flame size={10} /> {STATION_LABELS[dish.praca_responsavel] || dish.praca_responsavel}</span>

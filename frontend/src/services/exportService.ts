@@ -67,6 +67,7 @@ export const exportToExcel = (data: ExportData & { financeiro: ExportData['finan
     'Açúcares Adicionados (g/100)': data.financeiro.nutricao?.acucar.toFixed(2),
     'Sódio (mg/100)': data.financeiro.nutricao?.sodio.toFixed(2),
     'Gordura Saturada (g/100)': data.financeiro.nutricao?.gordura.toFixed(2),
+    'Alérgenos Detectados': data.rotulagem.alergenos?.join(', ') || 'Nenhum',
     'Validade': data.rotulagem.validade,
     'Conservação': data.rotulagem.conservacao,
     'Glúten': data.rotulagem.gluten,

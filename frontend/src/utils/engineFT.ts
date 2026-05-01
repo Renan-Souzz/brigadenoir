@@ -66,6 +66,36 @@ export function verificarAlertasAnvisa(nutricaoTotal: { acucar: number, sodio: n
 }
 
 /**
+ * Detecta alérgenos principais baseando-se no nome dos insumos
+ * Conforme RDC 26/2015 ANVISA
+ */
+export function detectarAlergenos(ingredientes: { insumo_nome?: string }[]): string[] {
+  const alergenosDetectados = new Set<string>();
+
+  const alergiasKeywords = {
+    'Glúten': ['farinha de trigo', 'trigo', 'centeio', 'cevada', 'aveia', 'malte', 'pão', 'macarrão', 'massa'],
+    'Lactose/Leite': ['leite', 'queijo', 'manteiga', 'creme de leite', 'iogurte', 'requeijão', 'soro', 'lactose'],
+    'Ovos': ['ovo', 'ovos', 'clara', 'gema', 'maionese'],
+    'Peixes': ['peixe', 'salmão', 'atum', 'tilápia', 'bacalhau'],
+    'Crustáceos': ['camarão', 'lagosta', 'caranguejo', 'siri', 'ostra', 'mexilhão'],
+    'Amendoim': ['amendoim', 'paçoca'],
+    'Soja': ['soja', 'shoyu', 'tofu'],
+    'Castanhas/Nozes': ['castanha', 'noz', 'nozes', 'amêndoa', 'avelã', 'macadâmia', 'pistache']
+  };
+
+  ingredientes.forEach(ing => {
+    const nome = (ing.insumo_nome || '').toLowerCase();
+    Object.entries(alergiasKeywords).forEach(([alergeno, keywords]) => {
+      if (keywords.some(k => nome.includes(k.toLowerCase()))) {
+        alergenosDetectados.add(alergeno);
+      }
+    });
+  });
+
+  return Array.from(alergenosDetectados);
+}
+
+/**
  * Realiza o cálculo completo da Ficha Técnica
  */
 export function calcularResumoFicha(ingredientes: IngredienteFicha[], rendimento: number = 1, precoVenda: number = 0) {
