@@ -121,7 +121,23 @@ export default function Relatorio() {
         ? Math.round(stationStats.reduce((acc, curr) => acc + curr.efficiency, 0) / stationStats.length) 
         : 0;
 
-    return { historyData, totalPaxWeek, totalPaxMonth, growthData, stationStats, overallEfficiency };
+    // 4. Estoque e Almoxarifado Metrics
+    const almoxInsumos = insumos.filter(i => i.station === 'almoxarifado');
+    const kitchenInsumos = insumos.filter(i => i.station !== 'almoxarifado' && i.station !== 'lideranca');
+
+    const totalProteinas = almoxInsumos.filter(i => i.categoria === 'proteinas').reduce((acc, curr) => acc + curr.quantity, 0);
+    const totalMolhos = almoxInsumos.filter(i => i.categoria === 'molhos').reduce((acc, curr) => acc + curr.quantity, 0);
+    const totalPorcoes = almoxInsumos.filter(i => i.categoria === 'porcoes').reduce((acc, curr) => acc + curr.quantity, 0);
+
+    const entregasRecentes = kitchenInsumos.map(i => ({
+      name: i.name,
+      station: i.station,
+      quantity: i.quantity,
+      unit: i.unit,
+      date: i.last_prep_at
+    })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 8);
+
+    return { historyData, totalPaxWeek, totalPaxMonth, growthData, stationStats, overallEfficiency, totalProteinas, totalMolhos, totalPorcoes, entregasRecentes };
   }, [tasks, insumos, allPax, isLoading]);
 
   const handleSavePax = async () => {
@@ -334,6 +350,58 @@ export default function Relatorio() {
                   })}
                 </div>
              </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Estoque e Entregas (Almoxarifado) */}
+      <div className="bg-surface-container-low rounded-3xl p-8 border border-outline-variant/5 mb-8">
+        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant mb-6">Integração Almoxarifado e Produção</h4>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Métricas de Estoque Central */}
+          <div className="col-span-1 space-y-4">
+            <div className="bg-surface-container p-6 rounded-2xl border border-outline-variant/10 shadow-lg">
+              <h5 className="text-[9px] font-black uppercase tracking-[0.1em] text-on-surface mb-4">Total no Almoxarifado</h5>
+              <div className="space-y-4">
+                <div className="flex justify-between items-end border-b border-outline-variant/5 pb-2">
+                  <span className="text-xs font-bold text-outline-variant uppercase">Proteínas</span>
+                  <span className="text-xl font-black text-primary">{analytics?.totalProteinas.toFixed(1)} <span className="text-[10px] font-normal text-secondary">kg</span></span>
+                </div>
+                <div className="flex justify-between items-end border-b border-outline-variant/5 pb-2">
+                  <span className="text-xs font-bold text-outline-variant uppercase">Molhos</span>
+                  <span className="text-xl font-black text-primary">{analytics?.totalMolhos.toFixed(1)} <span className="text-[10px] font-normal text-secondary">L/kg</span></span>
+                </div>
+                <div className="flex justify-between items-end border-b border-outline-variant/5 pb-2">
+                  <span className="text-xs font-bold text-outline-variant uppercase">Porções</span>
+                  <span className="text-xl font-black text-primary">{analytics?.totalPorcoes} <span className="text-[10px] font-normal text-secondary">un</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Entregas à Cozinha / Preparo Recente */}
+          <div className="col-span-1 lg:col-span-2">
+            <div className="bg-surface-container p-6 rounded-2xl border border-outline-variant/10 shadow-lg h-full">
+              <h5 className="text-[9px] font-black uppercase tracking-[0.1em] text-on-surface mb-4">Entregues ou Processados na Cozinha</h5>
+              {analytics?.entregasRecentes.length === 0 ? (
+                <p className="text-xs text-outline-variant italic">Nenhuma entrega registrada hoje.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {analytics?.entregasRecentes.map((e, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-surface-container-highest p-3 rounded-xl border border-outline-variant/5">
+                      <div>
+                        <p className="text-xs font-black uppercase text-on-surface">{e.name}</p>
+                        <p className="text-[8px] font-bold uppercase text-outline-variant mt-1">{e.station} • {new Date(e.date).toLocaleDateString('pt-BR')}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-black text-secondary">{e.quantity} <span className="text-[9px]">{e.unit}</span></span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

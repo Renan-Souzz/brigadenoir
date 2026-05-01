@@ -26,6 +26,8 @@ import Skeleton, { CardSkeleton } from './shared/Skeleton';
 // Hooks
 import { useInsumos, Insumo } from '../hooks/useInsumos';
 
+import RendimentosList from './ModuloAlmoxarifado/RendimentosList';
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORIAS = [
@@ -76,6 +78,7 @@ export default function Almoxarifado() {
     refetch 
   } = useInsumos('almoxarifado');
   
+  const [activeTab, setActiveTab] = useState<'inventory' | 'rendimento'>('inventory');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -105,6 +108,7 @@ export default function Almoxarifado() {
     try {
       await addInsumo({
         name: name.toUpperCase(),
+        categoria: categoria,
         quantity: parseFloat(quantity),
         unit,
         expiry_date: expiry,
@@ -157,15 +161,31 @@ export default function Almoxarifado() {
 
       <div className="flex flex-col lg:flex-row gap-8 relative mt-8 pb-32">
         <div className="w-full lg:w-80 shrink-0 space-y-4">
+          
+          <div className="flex bg-surface-container rounded-2xl p-1 border border-outline-variant/10 mb-6 relative">
+             <button 
+                onClick={() => setActiveTab('inventory')}
+                className={`flex-1 py-3 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'inventory' ? 'bg-primary/20 text-primary' : 'text-outline-variant hover:text-on-surface hover:bg-surface-container-highest'}`}
+             >
+                Inventário
+             </button>
+             <button 
+                onClick={() => setActiveTab('rendimento')}
+                className={`flex-1 py-3 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'rendimento' ? 'bg-primary/20 text-primary' : 'text-outline-variant hover:text-on-surface hover:bg-surface-container-highest'}`}
+             >
+                Teste Quebra
+             </button>
+          </div>
+
           <div className="bg-surface-container rounded-3xl p-6 border border-outline-variant/10 shadow-xl mb-6">
              <div className="flex items-center gap-3 mb-4"><BarChart3 size={18} className="text-primary" /><h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-on-surface">Métricas Globais</h3></div>
              <div className="grid grid-cols-2 gap-4">
                 <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/10"><p className="text-[8px] font-bold text-outline uppercase tracking-widest">Total Itens</p><p className="text-2xl font-black text-primary">{almoxItems.length}</p></div>
-                <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/10"><p className="text-[8px] font-bold text-outline uppercase tracking-widest">Vencendo</p><p className="text-2xl font-black text-red-500">{almoxItems.filter(i => { const d = Math.ceil((new Date(i.expiry_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)); return d <= 3; }).length}</p></div>
+                <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/10"><p className="text-[8px] font-bold text-outline uppercase tracking-widest">Vencendo</p><p className="text-2xl font-black text-red-500">{almoxItems.filter(i => { const d = Math.ceil((new Date(i.expiry_date || '').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)); return d <= 3; }).length}</p></div>
              </div>
           </div>
 
-          {CATEGORIAS.map(cat => {
+          {activeTab === 'inventory' && CATEGORIAS.map(cat => {
             const Icon = cat.icon;
             const count = almoxItems.filter(i => i.categoria === cat.id).length;
             const isActive = activeCategory === cat.id;
@@ -197,7 +217,9 @@ export default function Almoxarifado() {
         </div>
 
         <div className="flex-1">
-          {isLoading ? (
+          {activeTab === 'rendimento' ? (
+            <RendimentosList />
+          ) : isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
             </div>

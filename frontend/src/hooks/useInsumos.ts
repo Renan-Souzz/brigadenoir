@@ -5,6 +5,7 @@ import { NotificationService } from '../services/NotificationService';
 export interface Insumo {
   id: string;
   name: string;
+  categoria?: string;
   station: string;
   quantity: number;
   unit: string;
@@ -19,7 +20,7 @@ export function useInsumos(station?: string) {
   const queryClient = useQueryClient();
 
   // Selective fields to reduce payload
-  const SELECT_FIELDS = 'id, name, station, quantity, unit, status, expiry_date, last_prep_at';
+  const SELECT_FIELDS = 'id, name, categoria, station, quantity, unit, status, expiry_date, last_prep_at';
 
   // For the standard list with "Load More"
   const infiniteQuery = useInfiniteQuery({
