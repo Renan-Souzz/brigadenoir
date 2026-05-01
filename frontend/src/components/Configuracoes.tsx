@@ -136,7 +136,7 @@ export default function Configuracoes() {
             </div>
 
             <button onClick={signOut} className="w-full flex items-center justify-between p-6 bg-error/10 hover:bg-error/20 rounded-2xl border border-error/20 transition-all text-error group">
-              <div className="flex items-center gap-3"><LogOut size={20} /><span className="font-bold uppercase text-xs tracking-widest">Encerrar Seção</span></div>
+              <div className="flex items-center gap-3"><LogOut size={20} /><span className="font-bold uppercase text-xs tracking-widest">Encerrar Sessão</span></div>
               <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </button>
           </div>

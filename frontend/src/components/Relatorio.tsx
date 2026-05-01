@@ -167,17 +167,17 @@ export default function Relatorio() {
 
   return (
     <PageLayout maxWidth="6xl">
-      <div className="flex justify-between items-end mb-12">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
         <div>
           <span className="text-[0.6875rem] font-bold uppercase tracking-[0.2em] text-primary">Inteligência Operacional</span>
-          <h2 className="text-5xl font-black text-on-surface tracking-tighter mt-2 uppercase">Evolução da Cozinha</h2>
+          <h2 className="text-3xl md:text-5xl font-black text-on-surface tracking-tighter mt-2 uppercase">Evolução da Cozinha</h2>
         </div>
-        <Button variant="outline" onClick={() => refetchPax()} className="gap-2">
-           {isLoading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />} Atualizar
+        <Button variant="outline" size="sm" onClick={() => refetchPax()} className="gap-2">
+           {isLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />} Atualizar
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
         <StatCard icon={<TrendingUp className="text-secondary" />} value={`${analytics?.overallEfficiency || 0}%`} label="Eficiência Geral" />
         <StatCard icon={<Users className="text-primary-dim" />} value={String(analytics?.totalPaxWeek || 0)} label="PAX Semana" />
         <StatCard icon={<Calendar className="text-primary" />} value={String(analytics?.totalPaxMonth || 0)} label="PAX Mês" />

@@ -172,7 +172,7 @@ export default function Almoxarifado() {
             return (
               <button key={cat.id} onClick={() => setActiveCategory(isActive ? null : cat.id)} className={`group w-full relative p-[1px] rounded-2xl active:scale-95 transition-all duration-300 overflow-hidden ${isActive ? 'shadow-[0_0_15px_-5px_rgba(0,180,216,0.4)]' : ''}`}>
                 <span className={`absolute inset-0 bg-gradient-to-br from-primary via-secondary to-primary ${isActive ? 'opacity-100 blur-[2px]' : 'opacity-40 group-hover:opacity-100 blur-[1px]'}`}></span>
-                <div className={`relative flex items-center justify-between gap-4 p-5 rounded-[15px] text-left h-full w-full ${isActive ? 'bg-surface-container-highest' : 'bg-[#1a1c23] group-hover:bg-surface-container-highest'} transition-all`}>
+                <div className={`relative flex items-center justify-between gap-4 p-5 rounded-[15px] text-left h-full w-full ${isActive ? 'bg-surface-container-highest' : 'bg-surface-container group-hover:bg-surface-container-highest'} transition-all`}>
                   <div className="flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${isActive ? 'bg-primary/20 border-primary/30 text-primary' : 'bg-surface-container-highest border-outline-variant/10 group-hover:text-primary'}`}><Icon size={18} /></div>
                     <div><span className={`text-xs font-black uppercase tracking-wider block ${isActive ? 'text-primary' : 'text-on-surface'}`}>{cat.label}</span><span className="text-[9px] font-bold uppercase tracking-[0.2em] text-outline-variant mt-0.5">{count} itens</span></div>
@@ -185,7 +185,7 @@ export default function Almoxarifado() {
 
           <button onClick={() => setIsModalOpen(true)} className="group w-full relative p-[1px] rounded-2xl active:scale-95 transition-all duration-300 overflow-hidden mt-8">
             <span className="absolute inset-0 bg-gradient-to-br from-primary via-secondary to-primary opacity-40 group-hover:opacity-100 blur-[1px]"></span>
-            <div className="relative flex items-center gap-4 p-6 rounded-[15px] text-left h-full w-full bg-[#1a1c23] group-hover:bg-surface-container-highest">
+            <div className="relative flex items-center gap-4 p-6 rounded-[15px] text-left h-full w-full bg-surface-container group-hover:bg-surface-container-highest">
               <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary"><Plus size={18} /></div>
               <span className="text-sm font-black text-on-surface-variant uppercase tracking-wider group-hover:text-primary">Novo Registro</span>
             </div>

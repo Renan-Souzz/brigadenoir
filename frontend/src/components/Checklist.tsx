@@ -98,7 +98,7 @@ function ChecklistItem({ title, subtitle, checked, priority, date, creatorName, 
         {canDelete && (
           <button 
             onClick={onDelete}
-            className="p-1.5 text-outline-variant/40 hover:text-error hover:bg-error/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all active:scale-90"
+            className="p-1.5 text-outline-variant/40 hover:text-error hover:bg-error/10 rounded-lg md:opacity-0 md:group-hover:opacity-100 transition-all active:scale-90"
           >
             <Trash2 size={12} />
           </button>
@@ -295,7 +295,7 @@ export default function Checklist() {
             <span className="text-[0.6875rem] font-black tracking-[0.3em] text-primary uppercase">Mise en Place & Produção</span>
             <h1 className="text-3xl md:text-6xl font-black text-on-surface mt-2 tracking-tighter leading-none uppercase">A LISTA</h1>
             <p className="mt-3 md:mt-4 text-on-surface-variant leading-relaxed text-xs md:text-base font-medium max-w-lg">
-              {isManagement ? 'Gerenciamento tático de todas as praças da Brigade Noir em tempo real.' : `Controle de production da praça ${profile?.station?.toUpperCase()}. Mantenha o padrão de excelência.`}
+              {isManagement ? 'Gerenciamento tático de todas as praças da Brigade Noir em tempo real.' : `Controle de produção da praça ${profile?.station?.toUpperCase()}. Mantenha o padrão de excelência.`}
             </p>
           </div>
           

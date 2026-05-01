@@ -270,7 +270,7 @@ export default function Brigada() {
                 className="group min-w-[160px] relative p-[1px] rounded-2xl shadow-none hover:shadow-[0_0_20px_rgba(0,180,216,0.2)] transition-all duration-500 overflow-hidden"
               >
                 <span className="absolute inset-0 bg-gradient-to-br from-primary/40 via-secondary/40 to-primary/40 group-hover:from-primary group-hover:via-secondary group-hover:to-primary opacity-50 group-hover:opacity-100 blur-[0.5px] group-hover:scale-110 transition-all duration-500"></span>
-                <div className="relative flex flex-col justify-between p-4 rounded-[15px] h-full w-full bg-[#1a1c23] group-hover:bg-surface-container-highest transition-all duration-300">
+                <div className="relative flex flex-col justify-between p-4 rounded-[15px] h-full w-full bg-surface-container group-hover:bg-surface-container-highest transition-all duration-300">
                   <div>
                     <p className="text-[7px] font-black uppercase tracking-tighter text-primary/70 group-hover:text-primary mb-1 transition-colors">{ROLE_LABELS[invite.role]}</p>
                     <p className="text-base font-black text-on-surface tracking-widest">{invite.code}</p>

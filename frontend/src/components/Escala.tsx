@@ -140,7 +140,7 @@ export default function Escala() {
   const handleExportExcel = () => {
     try {
       const data = filteredUsers.map(u => {
-        const row: any = { Colaborador: u.full_name, Cargo: u.role };
+        const row: any = { Colaborador: u.full_name };
         days.forEach(({ day }) => {
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const rec = schedule.find(s => s.user_id === u.id && s.date === dateStr);
@@ -265,7 +265,6 @@ export default function Escala() {
               <tr key={u.id} className={`group transition-colors hover:bg-primary/[0.03] ${idx % 2 === 0 ? '' : 'bg-surface-container-low/30'}`}>
                 <td className="sticky left-0 z-10 bg-surface-container px-4 py-2.5 border-r border-outline-variant/15 group-hover:bg-primary/[0.03]">
                   <p className="text-[12px] font-black text-on-surface uppercase tracking-tight leading-tight truncate max-w-[130px]">{u.full_name}</p>
-                  <p className="text-[9px] text-on-surface-variant font-bold uppercase tracking-wider">{u.role}</p>
                 </td>
                 {days.map(({ day, isWeekend }) => {
                   const rec = getStatus(u.id, day);
@@ -336,7 +335,6 @@ export default function Escala() {
                 <tr key={u.id} style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(18,19,25,0.5)' }}>
                   <td style={{ padding: '10px 16px', borderBottom: '1px solid rgba(70,71,85,0.1)' }}>
                     <p style={{ fontSize: '13px', fontWeight: 900, color: '#e5e4f6', textTransform: 'uppercase', letterSpacing: '-0.02em', margin: 0 }}>{u.full_name}</p>
-                    <p style={{ fontSize: '9px', fontWeight: 800, color: '#a6cce3', textTransform: 'uppercase', letterSpacing: '0.2em', margin: '3px 0 0' }}>{u.role}</p>
                   </td>
                   {days.map(({ day, isWeekend }) => {
                     const rec = getStatus(u.id, day);

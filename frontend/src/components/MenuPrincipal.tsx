@@ -272,7 +272,7 @@ export default function MenuPrincipal() {
             return (
               <button key={cat} onClick={() => setActiveCategory(isActive ? null : cat)} className={`group w-full relative p-[1px] rounded-2xl active:scale-95 transition-all duration-300 overflow-hidden ${isActive ? 'shadow-[0_0_15px_-5px_rgba(0,180,216,0.4)]' : ''}`}>
                 <span className={`absolute inset-0 bg-gradient-to-br from-primary via-secondary to-primary ${isActive ? 'opacity-100 blur-[2px]' : 'opacity-40 group-hover:opacity-100 blur-[1px]'}`}></span>
-                <div className={`relative flex items-center justify-between gap-4 p-5 md:p-6 rounded-[15px] text-left h-full w-full ${isActive ? 'bg-surface-container-highest' : 'bg-[#1a1c23] group-hover:bg-surface-container-highest'} transition-all`}>
+                <div className={`relative flex items-center justify-between gap-4 p-5 md:p-6 rounded-[15px] text-left h-full w-full ${isActive ? 'bg-surface-container-highest' : 'bg-surface-container group-hover:bg-surface-container-highest'} transition-all`}>
                   <div className="flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${isActive ? 'bg-primary/20 border-primary/30 text-primary' : 'bg-surface-container-highest border-outline-variant/10 group-hover:text-primary'}`}><Flame size={18} /></div>
                     <div>
@@ -289,7 +289,7 @@ export default function MenuPrincipal() {
           {isManagement && (
             <button onClick={() => openModal()} className="hidden lg:block group w-full relative p-[1px] rounded-2xl active:scale-95 transition-all duration-300 overflow-hidden">
                <span className="absolute inset-0 bg-gradient-to-br from-primary via-secondary to-primary opacity-40 group-hover:opacity-100 blur-[1px]"></span>
-               <div className="relative flex items-center gap-4 p-5 md:p-6 rounded-[15px] text-left h-full w-full bg-[#1a1c23] group-hover:bg-surface-container-highest">
+               <div className="relative flex items-center gap-4 p-5 md:p-6 rounded-[15px] text-left h-full w-full bg-surface-container group-hover:bg-surface-container-highest">
                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary"><Plus size={18} /></div>
                  <span className="text-sm font-black text-on-surface-variant uppercase tracking-wider group-hover:text-primary">Novo Prato</span>
                </div>
@@ -321,7 +321,7 @@ export default function MenuPrincipal() {
                     const isEditing = editingPorcao === dish.id;
 
                     return (
-                      <div key={dish.id} className={`group rounded-2xl border overflow-hidden transition-all duration-500 ${isCritical && canEdit ? 'bg-[#2b1414] border-red-500/60 shadow-[0_0_30px_-5px_rgba(239,68,68,0.3)] ring-1 ring-red-500/50' : 'bg-surface-container border-outline-variant/10'}`}>
+                      <div key={dish.id} className={`group rounded-2xl border overflow-hidden transition-all duration-500 ${isCritical && canEdit ? 'bg-error/5 border-red-500/60 shadow-[0_0_30px_-5px_rgba(239,68,68,0.3)] ring-1 ring-red-500/50' : 'bg-surface-container border-outline-variant/10'}`}>
                         <div className="relative w-full h-48 bg-surface-container-highest overflow-hidden">
                           {dish.image_url ? <img src={dish.image_url} alt={dish.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed size={40} className="opacity-20 text-outline-variant" /></div>}
                           <div className={`absolute top-3 right-3 px-3 py-1.5 rounded-lg backdrop-blur-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${isCritical ? 'bg-red-500 text-white animate-pulse' : isLow ? 'bg-red-500/80 text-white animate-pulse' : 'bg-black/60 text-white'}`}>
