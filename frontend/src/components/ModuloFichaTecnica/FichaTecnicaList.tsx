@@ -13,18 +13,22 @@ import {
   ArrowLeft,
   X,
   Target,
-  ChevronDown
+  ChevronDown,
+  Trash2,
+  Edit2
 } from 'lucide-react';
 import PageLayout from '../shared/PageLayout';
 import PageHeader from '../shared/PageHeader';
 import Button from '../shared/Button';
+import { useModal } from '../../contexts/ModalContext';
 import { useFTFichas, FTFicha } from '../../hooks/useFTFichas';
 import FichaEditor from './FichaEditor';
 
 const CATEGORIAS = ['Entrada', 'Prato Principal', 'Sobremesa', 'Bebida', 'Base / Molho'];
 
 export default function FichaTecnicaList() {
-  const { fichas, isLoading } = useFTFichas();
+  const { fichas, isLoading, deleteFicha } = useFTFichas();
+  const { showConfirm, showAlert } = useModal();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -60,6 +64,21 @@ export default function FichaTecnicaList() {
     const avgCmv = categoryFinances.length > 0 ? categoryFinances.reduce((acc, f) => acc + f.cmv, 0) / categoryFinances.length : 0;
     return { total: categoryFichas.length, avgCmv };
   }, [fichas, activeCategory]);
+
+  const handleDeleteFicha = async (e: React.MouseEvent, id: string, nome: string) => {
+    e.stopPropagation();
+    const confirmed = await showConfirm(
+      'Excluir Ficha Técnica',
+      `Tem certeza que deseja excluir "${nome}"? Esta ação removerá permanentemente os dados desta ficha.`
+    );
+    if (confirmed) {
+      try {
+        await deleteFicha(id);
+      } catch (err: any) {
+        showAlert('Erro ao Excluir', err.message);
+      }
+    }
+  };
 
   if (editingId || isCreating) {
     return <FichaEditor fichaId={editingId || undefined} onClose={() => { setEditingId(null); setIsCreating(false); }} />;
@@ -176,10 +195,10 @@ export default function FichaTecnicaList() {
                 const isWarning = finance.cmv > (f.cmv_ideal || 30) * 0.9 && finance.cmv <= (f.cmv_ideal || 30);
 
                 return (
-                  <button 
+                  <div
                     key={f.id} 
                     onClick={() => setEditingId(f.id)}
-                    className={`group bg-surface-container/40 backdrop-blur-md rounded-[32px] p-8 border-2 transition-all duration-500 hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] hover:-translate-y-2 text-left relative flex flex-col min-h-[240px] ${
+                    className={`group cursor-pointer bg-surface-container/40 backdrop-blur-md rounded-[32px] p-8 border-2 transition-all duration-500 hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] hover:-translate-y-2 text-left relative flex flex-col min-h-[240px] ${
                       isCritical 
                         ? 'border-error/10 hover:border-error/40' 
                         : 'border-outline-variant/10 hover:border-primary/40'
@@ -219,7 +238,25 @@ export default function FichaTecnicaList() {
                          isCritical ? 'bg-error shadow-error/40' : isWarning ? 'bg-warning shadow-warning/40' : 'bg-primary shadow-primary/40'
                        }`} style={{ width: `${Math.min(finance.cmv, 100)}%` }} />
                     </div>
-                  </button>
+
+                    {/* Actions */}
+                    <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-outline-variant/10 w-full relative z-10">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setEditingId(f.id); }}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-outline-variant hover:text-primary hover:bg-primary/10 transition-colors"
+                        title="Editar Ficha"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button 
+                        onClick={(e) => handleDeleteFicha(e, f.id, f.nome)}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-outline-variant hover:text-error hover:bg-error/10 transition-colors"
+                        title="Excluir Ficha"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
                 );
               })
             )}

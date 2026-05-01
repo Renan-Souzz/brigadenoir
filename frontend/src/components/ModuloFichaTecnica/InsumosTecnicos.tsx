@@ -191,10 +191,10 @@ export default function InsumosTecnicos() {
                 </td>
                 <td className="pr-12 py-6 text-right">
                   <div className="flex justify-end gap-2">
-                    <button onClick={() => handleEdit(i)} className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline-variant hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                    <button onClick={() => handleEdit(i)} className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline-variant hover:text-primary hover:bg-primary/10 transition-all duration-300">
                       <Edit2 size={20} />
                     </button>
-                    <button onClick={() => handleDelete(i.id, i.nome)} className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline-variant hover:text-error hover:bg-error/10 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                    <button onClick={() => handleDelete(i.id, i.nome)} className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline-variant hover:text-error hover:bg-error/10 transition-all duration-300">
                       <Trash2 size={20} />
                     </button>
                   </div>
