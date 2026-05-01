@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { AppRole, KitchenStation, Profile } from '../contexts/AuthContext';
+import { NotificationService } from '../services/NotificationService';
 
 export interface Invite {
   id: string;
@@ -33,6 +34,19 @@ export function useProfiles() {
         .update(updates)
         .eq('id', userId);
       if (error) throw error;
+
+      // Notify the user if role or station changed
+      if (updates.role || updates.station) {
+        let messageParts = [];
+        if (updates.role) messageParts.push(`cargo para ${updates.role.replace('_', ' ')}`);
+        if (updates.station) messageParts.push(`praça para ${updates.station}`);
+        
+        await NotificationService.notifyUser(userId, {
+          title: 'Perfil Atualizado',
+          message: `A liderança alterou seu ${messageParts.join(' e ')}.`,
+          type: 'info'
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] });

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { NotificationService } from '../services/NotificationService';
 
 export interface Dish {
   id: string;
@@ -59,17 +60,16 @@ export function useDishes() {
 
   const updatePorcao = useMutation({
     mutationFn: async ({ dishId, porcoes }: { dishId: string, porcoes: number }) => {
-      // Logic for 86 (out of stock) notification
       if (porcoes < 1) {
         const { data: dish } = await supabase.from('dishes').select('*').eq('id', dishId).single();
         if (dish) {
-            await supabase.from('notifications').insert([{
+            await NotificationService.notifyLeadership({
                 title: `86 - Prato Esgotado: ${dish.title}`,
                 message: `A praça ${dish.praca_responsavel} registrou 0 porções de ${dish.title}. Bloqueie as vendas imediatamente!`,
                 type: 'error',
                 station: dish.praca_responsavel,
-                dish_id: dishId // Vínculo para limpeza automática
-            }]);
+                dish_id: dishId
+            });
         }
       }
 

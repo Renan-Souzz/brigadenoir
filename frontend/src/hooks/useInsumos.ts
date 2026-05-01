@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { NotificationService } from '../services/NotificationService';
 
 export interface Insumo {
   id: string;
@@ -61,6 +62,18 @@ export function useInsumos(station?: string) {
         .update({ quantity, status })
         .eq('id', id);
       if (error) throw error;
+
+      if (quantity <= 0) {
+        const item = allInsumos.find(i => i.id === id);
+        if (item) {
+          await NotificationService.notifyStation(item.station, {
+            title: 'Insumo Esgotado',
+            message: `Atenção: O insumo "${item.name}" atingiu quantidade ZERO na praça.`,
+            type: 'error',
+            station: item.station
+          });
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['insumos'] });

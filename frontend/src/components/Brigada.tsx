@@ -23,6 +23,7 @@ import PageHeader from './shared/PageHeader';
 import PageLayout from './shared/PageLayout';
 import { useModal } from '../contexts/ModalContext';
 import Button from './shared/Button';
+import { NotificationService } from '../services/NotificationService';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -151,6 +152,13 @@ export default function Brigada() {
       if (res.error) throw new Error(res.error.message);
       if (res.data?.error) throw new Error(res.data.error);
 
+      // Notify the user about their password change
+      await NotificationService.notifyUser(user.id, {
+        title: 'Assinatura Atualizada',
+        message: 'A liderança definiu uma nova assinatura (senha) para sua credencial técnica.',
+        type: 'warning'
+      });
+
       showAlert('Senha Alterada', `A senha de ${user.full_name} foi atualizada com sucesso! Ele(a) já pode usar a nova senha.`);
     } catch (err: any) {
       showAlert('Erro', err.message || 'Falha ao alterar a senha.');
@@ -211,11 +219,11 @@ export default function Brigada() {
         avatarSeed={profile?.full_name || 'chef'}
       />
 
-      <div className="mt-8 mb-12 flex flex-col md:flex-row justify-between gap-8">
+      <div className="mt-6 md:mt-8 mb-8 md:mb-12 flex flex-col md:flex-row justify-between gap-6 md:gap-8">
         <div className="max-w-2xl">
           <span className="text-[0.6875rem] font-bold tracking-[0.2em] text-secondary uppercase">Quadro de Pessoal</span>
-          <h3 className="text-5xl font-black text-on-surface mt-2 tracking-tighter leading-none">A ESCALA</h3>
-          <p className="mt-4 text-on-surface-variant leading-relaxed text-sm">
+          <h3 className="text-3xl md:text-5xl font-black text-on-surface mt-2 tracking-tighter leading-none">A ESCALA</h3>
+          <p className="mt-3 md:mt-4 text-on-surface-variant leading-relaxed text-xs md:text-sm">
             Distribua os talentos da cozinha pelas praças. O acesso a cargos de liderança exige um código de convite técnico.
           </p>
         </div>
@@ -291,12 +299,13 @@ export default function Brigada() {
       )}
 
       <div className="bg-surface-container rounded-2xl overflow-hidden border border-outline-variant/10 shadow-sm mb-20">
-        <div className="px-6 py-4 border-b border-outline-variant/10 bg-surface-container-low flex justify-between items-center">
+        <div className="px-4 md:px-6 py-3 md:py-4 border-b border-outline-variant/10 bg-surface-container-low flex justify-between items-center">
           <h4 className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Membros Ativos ({filteredUsers.length})</h4>
           <Button variant="ghost" size="sm" onClick={() => refetchUsers()} icon={<RefreshCcw size={14} className={usersLoading ? 'animate-spin' : ''} />}>Recarregar</Button>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-surface-container-highest/30">
@@ -351,18 +360,13 @@ export default function Brigada() {
                           ))}
                         </select>
                       ) : (
-                        <div className="flex flex-col">
-                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest w-fit shadow-sm ${
-                            ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'].includes(u.role) ? 'bg-primary/20 text-primary border border-primary/10' :
-                            u.role === 'chef_de_partie' ? 'bg-secondary/20 text-secondary' :
-                            'bg-outline-variant/20 text-outline'
-                          }`}>
-                            {ROLE_LABELS[u.role as AppRole] || u.role}
-                          </span>
-                          {!isManagement && editingId === u.id && (
-                            <span className="text-[8px] text-outline-variant mt-1 uppercase font-bold tracking-tighter">Somente Gestão pode alterar cargo</span>
-                          )}
-                        </div>
+                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest w-fit shadow-sm ${
+                          ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'].includes(u.role) ? 'bg-primary/20 text-primary border border-primary/10' :
+                          u.role === 'chef_de_partie' ? 'bg-secondary/20 text-secondary' :
+                          'bg-outline-variant/20 text-outline'
+                        }`}>
+                          {ROLE_LABELS[u.role as AppRole] || u.role}
+                        </span>
                       )}
                     </td>
                     <td className="px-6 py-4">
@@ -410,49 +414,18 @@ export default function Brigada() {
                     <td className="px-6 py-4 text-right">
                       {editingId === u.id ? (
                         <div className="flex justify-end gap-2">
-                          <button 
-                            onClick={() => handleSaveChanges(u.id)}
-                            className="p-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors"
-                          >
-                            <Check size={16} />
-                          </button>
-                          <button 
-                            onClick={cancelEditing}
-                            className="p-2 bg-error/20 text-error rounded-lg hover:bg-error/30 transition-colors"
-                          >
-                            <X size={16} />
-                          </button>
+                          <button onClick={() => handleSaveChanges(u.id)} className="p-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors"><Check size={16} /></button>
+                          <button onClick={cancelEditing} className="p-2 bg-error/20 text-error rounded-lg hover:bg-error/30 transition-colors"><X size={16} /></button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1 justify-end">
                           {isManagement && (
                             <>
-                              <button 
-                                onClick={() => handleResetPassword(u)}
-                                title="Redefinir Senha"
-                                className="p-2 transition-colors rounded-lg text-outline-variant hover:text-secondary hover:bg-secondary/10"
-                              >
-                                <Key size={16} />
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteMember(u)}
-                                title="Excluir Membro"
-                                className="p-2 transition-colors rounded-lg text-outline-variant hover:text-red-400 hover:bg-red-400/10"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                              <button onClick={() => handleResetPassword(u)} title="Redefinir Senha" className="p-2 transition-colors rounded-lg text-outline-variant hover:text-secondary hover:bg-secondary/10"><Key size={16} /></button>
+                              <button onClick={() => handleDeleteMember(u)} title="Excluir Membro" className="p-2 transition-colors rounded-lg text-outline-variant hover:text-red-400 hover:bg-red-400/10"><Trash2 size={16} /></button>
                             </>
                           )}
-                          <button 
-                            disabled={!canEditUser(u)}
-                            onClick={() => startEditing(u)}
-                            title="Editar Dados"
-                            className={`p-2 transition-colors rounded-lg ${
-                              canEditUser(u) ? 'text-outline-variant hover:text-primary hover:bg-primary/10' : 'opacity-20 cursor-not-allowed'
-                            }`}
-                          >
-                            <Pencil size={16} />
-                          </button>
+                          <button disabled={!canEditUser(u)} onClick={() => startEditing(u)} title="Editar Dados" className={`p-2 transition-colors rounded-lg ${canEditUser(u) ? 'text-outline-variant hover:text-primary hover:bg-primary/10' : 'opacity-20 cursor-not-allowed'}`}><Pencil size={16} /></button>
                         </div>
                       )}
                     </td>
@@ -461,6 +434,74 @@ export default function Brigada() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden divide-y divide-outline-variant/10">
+          {usersLoading ? (
+            <div className="py-16 text-center"><Loader2 className="animate-spin mx-auto text-primary" size={32} /></div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="py-16 text-center text-outline-variant font-medium text-sm">Nenhum membro encontrado.</div>
+          ) : (
+            filteredUsers.map((u) => (
+              <div key={u.id} className="p-4">
+                {editingId === u.id ? (
+                  <div className="space-y-3">
+                    <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-surface-container-highest rounded-xl p-3 text-sm font-bold text-on-surface border border-primary/20 focus:ring-1 focus:ring-primary outline-none" placeholder="Nome" />
+                    <div className="grid grid-cols-2 gap-2">
+                      {isManagement && (
+                        <select value={editRole} onChange={(e) => setEditRole(e.target.value as AppRole)} className="bg-surface-container-highest rounded-lg p-2.5 text-[11px] font-bold text-on-surface border-none">
+                          {Object.entries(ROLE_LABELS).map(([val, label]) => (<option key={val} value={val}>{label}</option>))}
+                        </select>
+                      )}
+                      <select value={editStation} onChange={(e) => setEditStation(e.target.value as KitchenStation)} className="bg-surface-container-highest rounded-lg p-2.5 text-[11px] font-bold text-on-surface border-none">
+                        <option value="" disabled>Praça</option>
+                        {Object.entries(STATION_LABELS).map(([val, label]) => {
+                          const isDisabled = isStationLead && val !== profile?.station;
+                          if (isDisabled && val !== u.station) return null;
+                          return (<option key={val} value={val} disabled={isDisabled}>{label}</option>);
+                        })}
+                      </select>
+                      <select value={editShift} onChange={(e) => setEditShift(e.target.value as 'manha' | 'tarde')} className="bg-surface-container-highest rounded-lg p-2.5 text-[11px] font-bold text-on-surface border-none">
+                        <option value="manha">Manhã</option>
+                        <option value="tarde">Tarde</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleSaveChanges(u.id)} className="flex-1 py-2.5 bg-primary/20 text-primary rounded-xl text-[11px] font-black uppercase flex items-center justify-center gap-2"><Check size={14} /> Salvar</button>
+                      <button onClick={cancelEditing} className="flex-1 py-2.5 bg-error/20 text-error rounded-xl text-[11px] font-black uppercase flex items-center justify-center gap-2"><X size={14} /> Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-[11px] font-bold text-primary border border-primary/20 shrink-0">
+                      {u.full_name?.substring(0, 2).toUpperCase() || '??'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-on-surface truncate">{u.full_name || 'Sem Nome'}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
+                          ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'].includes(u.role) ? 'bg-primary/20 text-primary' :
+                          u.role === 'chef_de_partie' ? 'bg-secondary/20 text-secondary' : 'bg-outline-variant/20 text-outline'
+                        }`}>{ROLE_LABELS[u.role as AppRole] || u.role}</span>
+                        <span className="text-[9px] text-on-surface-variant font-bold">{STATION_LABELS[u.station || 'saucier'] || '—'}</span>
+                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${u.shift === 'tarde' ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'}`}>{u.shift === 'tarde' ? 'Tarde' : 'Manhã'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {isManagement && (
+                        <>
+                          <button onClick={() => handleResetPassword(u)} className="p-2 text-outline-variant active:text-secondary"><Key size={16} /></button>
+                          <button onClick={() => handleDeleteMember(u)} className="p-2 text-outline-variant active:text-red-400"><Trash2 size={16} /></button>
+                        </>
+                      )}
+                      <button disabled={!canEditUser(u)} onClick={() => startEditing(u)} className={`p-2 ${canEditUser(u) ? 'text-outline-variant active:text-primary' : 'opacity-20'}`}><Pencil size={16} /></button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
     </PageLayout>

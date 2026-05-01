@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { NotificationService } from '../services/NotificationService';
 
 export interface Task {
   id: string;
@@ -75,6 +76,23 @@ export function useTasks(station?: string, dayFilter: 'hoje' | 'ontem' = 'hoje')
         })
         .eq('id', id);
       if (error) throw error;
+
+      // Check if 100% completion for the station
+      if (is_completed) {
+        const currentTask = allTasks.find(t => t.id === id);
+        if (currentTask) {
+          const stationTasks = allTasks.filter(t => t.station === currentTask.station);
+          const otherTasksIncomplete = stationTasks.filter(t => t.id !== id && !t.is_completed).length;
+          if (otherTasksIncomplete === 0 && stationTasks.length > 0) {
+            await NotificationService.notifyLeadership({
+              title: 'Checklist Concluído',
+              message: `A praça ${currentTask.station} finalizou todas as suas tarefas pendentes.`,
+              type: 'success',
+              station: currentTask.station
+            });
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });

@@ -485,10 +485,10 @@ export default function PageHeader({
 
       {/* GLOBAL SEARCH OVERLAY */}
       {showSearch && localSearchTerm.trim().length >= 3 && (
-        <div className="absolute top-[120%] left-0 right-0 bg-surface-container shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-outline-variant/20 rounded-3xl p-8 z-50 max-h-[80vh] overflow-y-auto animate-in slide-in-from-top-4 fade-in duration-300">
-          <div className="flex items-center gap-3 border-b border-outline-variant/10 pb-4 mb-6">
-            <Search size={24} className="text-primary" />
-            <h2 className="text-3xl font-black tracking-tighter text-on-surface uppercase truncate">Resultados Globais</h2>
+        <div className="absolute top-[120%] left-0 right-0 bg-surface-container shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-outline-variant/20 rounded-2xl md:rounded-3xl p-4 md:p-8 z-50 max-h-[70vh] overflow-y-auto animate-in slide-in-from-top-4 fade-in duration-300">
+          <div className="flex items-center gap-3 border-b border-outline-variant/10 pb-3 md:pb-4 mb-4 md:mb-6">
+            <Search size={20} className="text-primary shrink-0" />
+            <h2 className="text-lg md:text-3xl font-black tracking-tighter text-on-surface uppercase truncate">Resultados</h2>
             <button 
               onClick={() => { setLocalSearchTerm(''); onSearchChange?.(''); }} 
               className="ml-auto text-outline-variant hover:text-on-surface p-2 rounded-full hover:bg-surface-container-high transition-colors"

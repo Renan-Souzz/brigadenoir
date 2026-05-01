@@ -29,6 +29,7 @@ import { calcularPLFinal, calcularCustoIngrediente, calcularResumoFicha, verific
 import { useModal } from '../../contexts/ModalContext';
 import { exportToExcel } from '../../services/exportService';
 import { syncToGoogleSheets } from '../../services/googleSheetsService';
+import { NotificationService } from '../../services/NotificationService';
 
 interface FichaEditorProps {
   fichaId?: string;
@@ -180,6 +181,16 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
         ingredientes: ingredientes.filter(i => i.insumo_id).map(({ id, insumo_nome, preco_unitario_base, ...rest }: any) => rest),
         complementos: { ...complementos, contem_gluten: complementos.contem_gluten }
       });
+      
+      const isCmvCritical = resumo.cmv > cmvIdeal;
+      if (isCmvCritical) {
+        await NotificationService.notifyLeadership({
+          title: 'Alerta CMV Crítico',
+          message: `A ficha técnica "${nome}" foi salva com CMV de ${resumo.cmv.toFixed(1)}% (Meta: ${cmvIdeal}%).`,
+          type: 'error'
+        });
+      }
+
       onClose();
     } catch (err: any) {
       showAlert('Erro ao Salvar', err.message);
@@ -195,37 +206,37 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
 
   return (
     <PageLayout maxWidth="full">
-      <div className="flex items-center justify-between mb-10 group">
-        <div className="flex items-center gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-10 gap-4">
+        <div className="flex items-center gap-3 md:gap-6">
           <button 
             onClick={onClose} 
-            className="w-12 h-12 rounded-2xl bg-surface-container/60 backdrop-blur-md border border-outline-variant/10 flex items-center justify-center text-outline-variant hover:text-primary hover:border-primary/30 transition-all active:scale-90"
+            className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-surface-container/60 backdrop-blur-md border border-outline-variant/10 flex items-center justify-center text-outline-variant hover:text-primary hover:border-primary/30 transition-all active:scale-90 shrink-0"
           >
-            <ChevronLeft size={24} />
+            <ChevronLeft size={20} />
           </button>
           <div>
              <div className="flex items-center gap-2 mb-1">
-               <span className="w-8 h-[1px] bg-primary/30" />
-               <span className="text-[9px] font-black text-primary uppercase tracking-[0.3em]">Editor de Engenharia</span>
+               <span className="w-6 md:w-8 h-[1px] bg-primary/30" />
+               <span className="text-[8px] md:text-[9px] font-black text-primary uppercase tracking-[0.2em] md:tracking-[0.3em]">Editor de Engenharia</span>
              </div>
-             <h2 className="text-4xl font-black text-on-surface uppercase tracking-tighter">
-               {fichaId ? 'Ficha Técnica' : 'Novo Projeto Técnico'}
+             <h2 className="text-xl md:text-4xl font-black text-on-surface uppercase tracking-tighter">
+               {fichaId ? 'Ficha Técnica' : 'Novo Projeto'}
              </h2>
           </div>
         </div>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-2 md:gap-4">
           {fichaId && (
             <button 
               onClick={handleDelete}
-              className="w-12 h-12 rounded-2xl bg-error/10 border border-error/20 flex items-center justify-center text-error hover:bg-error hover:text-white transition-all active:scale-90 shadow-lg shadow-error/10"
+              className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-error/10 border border-error/20 flex items-center justify-center text-error hover:bg-error hover:text-white transition-all active:scale-90 shadow-lg shadow-error/10"
               title="Excluir Ficha Técnica"
             >
-              <Trash2 size={20} />
+              <Trash2 size={18} />
             </button>
           )}
           <Button 
             variant="outline" 
-            size="lg"
+            size="sm"
             className="border-primary/10"
             onClick={() => exportToExcel({
               ficha: { nome, categoria, rendimento, precoVenda, cmvIdeal },
@@ -239,9 +250,9 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
           </Button>
           <Button 
             variant="outline" 
-            size="lg"
-            className="border-[#4285F4]/20 text-[#4285F4] hover:bg-[#4285F4]/10"
-            icon={<FileSpreadsheet size={18} />}
+            size="sm"
+            className="border-[#4285F4]/20 text-[#4285F4] hover:bg-[#4285F4]/10 hidden sm:flex"
+            icon={<FileSpreadsheet size={16} />}
             onClick={async () => {
               try {
                 await syncToGoogleSheets({
@@ -257,26 +268,26 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
               }
             }}
           >
-            Google Sheets
+            Sheets
           </Button>
           <Button 
             variant="primary" 
-            size="lg"
-            icon={<Save size={20} />} 
+            size="sm"
+            icon={<Save size={16} />} 
             loading={isSaving} 
             onClick={handleSave}
-            className="shadow-2xl shadow-primary/20"
+            className="shadow-2xl shadow-primary/20 flex-1 sm:flex-none"
           >
-            Salvar Alterações
+            Salvar
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 pb-40">
-        <div className="lg:col-span-9 space-y-10">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10 pb-40">
+        <div className="lg:col-span-9 space-y-6 md:space-y-10">
           {/* Dados Primários */}
-          <div className="bg-surface-container/40 backdrop-blur-md rounded-[40px] border border-outline-variant/10 overflow-hidden shadow-2xl">
-            <div className="bg-surface-container-low/50 p-10 grid grid-cols-1 md:grid-cols-4 gap-10">
+          <div className="bg-surface-container/40 backdrop-blur-md rounded-2xl md:rounded-[40px] border border-outline-variant/10 overflow-hidden shadow-2xl">
+            <div className="bg-surface-container-low/50 p-4 md:p-10 grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-10">
                <div className="md:col-span-2">
                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 mb-3 block">Designação da Receita</label>
                  <input 

@@ -293,8 +293,8 @@ export default function Checklist() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="max-w-2xl">
             <span className="text-[0.6875rem] font-black tracking-[0.3em] text-primary uppercase">Mise en Place & Produção</span>
-            <h1 className="text-4xl md:text-6xl font-black text-on-surface mt-2 tracking-tighter leading-none uppercase">A LISTA</h1>
-            <p className="mt-4 text-on-surface-variant leading-relaxed text-sm md:text-base font-medium max-w-lg">
+            <h1 className="text-3xl md:text-6xl font-black text-on-surface mt-2 tracking-tighter leading-none uppercase">A LISTA</h1>
+            <p className="mt-3 md:mt-4 text-on-surface-variant leading-relaxed text-xs md:text-base font-medium max-w-lg">
               {isManagement ? 'Gerenciamento tático de todas as praças da Brigade Noir em tempo real.' : `Controle de production da praça ${profile?.station?.toUpperCase()}. Mantenha o padrão de excelência.`}
             </p>
           </div>
@@ -318,41 +318,41 @@ export default function Checklist() {
             {!isManagement && (
               <Button 
                 variant="primary" 
-                size="lg" 
+                size="sm" 
                 onClick={() => { setNewShift(activeShift === 'todos' ? 'manha' : activeShift); setNewStation(profile?.station || 'saucier'); setIsAddModalOpen(true); }}
-                icon={<Plus size={20} />}
+                icon={<Plus size={16} />}
                 className="shadow-xl shadow-primary/20"
               >
                 Nova Tarefa
               </Button>
             )}
             
-            <Button variant="outline" size="lg" onClick={() => refetchTasks()} icon={<RefreshCcw size={18} className={tasksLoading ? 'animate-spin' : ''} />}>Sincronizar</Button>
+            <Button variant="outline" size="sm" onClick={() => refetchTasks()} icon={<RefreshCcw size={16} className={tasksLoading ? 'animate-spin' : ''} />}>Sincronizar</Button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-        <div className="bg-surface-container rounded-3xl p-6 border border-outline-variant/10 shadow-xl relative overflow-hidden group">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8 md:mb-10">
+        <div className="bg-surface-container rounded-2xl md:rounded-3xl p-4 md:p-6 border border-outline-variant/10 shadow-xl relative overflow-hidden group">
            <div className={`absolute top-0 right-0 w-24 h-24 blur-[40px] opacity-20 rounded-full transition-colors ${efficiency >= 80 ? 'bg-primary' : 'bg-error'}`} />
            <div className="flex items-center gap-4 relative z-10">
               <div className="w-12 h-12 rounded-2xl bg-surface-container-highest flex items-center justify-center text-primary border border-outline-variant/10"><Zap size={24} /></div>
               <div><p className="text-xs font-black text-outline-variant uppercase tracking-widest">Eficiência</p><p className="text-3xl font-black text-on-surface tracking-tighter">{efficiency}%</p></div>
            </div>
         </div>
-        <div className="bg-surface-container rounded-3xl p-6 border border-outline-variant/10 shadow-xl relative overflow-hidden group">
+        <div className="bg-surface-container rounded-2xl md:rounded-3xl p-4 md:p-6 border border-outline-variant/10 shadow-xl relative overflow-hidden group">
            <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-surface-container-highest flex items-center justify-center text-secondary border border-outline-variant/10"><CheckCircle2 size={24} /></div>
               <div><p className="text-xs font-black text-outline-variant uppercase tracking-widest">Concluídas</p><p className="text-3xl font-black text-on-surface tracking-tighter">{completedCount}</p></div>
            </div>
         </div>
-        <div className="bg-surface-container rounded-3xl p-6 border border-outline-variant/10 shadow-xl relative overflow-hidden group">
+        <div className="bg-surface-container rounded-2xl md:rounded-3xl p-4 md:p-6 border border-outline-variant/10 shadow-xl relative overflow-hidden group">
            <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-surface-container-highest flex items-center justify-center text-tertiary border border-outline-variant/10"><Users size={24} /></div>
               <div><p className="text-xs font-black text-outline-variant uppercase tracking-widest">Praça</p><p className="text-2xl font-black text-on-surface tracking-tighter uppercase">{profile?.station || 'GERAL'}</p></div>
            </div>
         </div>
-        <div className="bg-surface-container rounded-3xl p-6 border border-outline-variant/10 shadow-xl relative overflow-hidden group cursor-pointer hover:bg-surface-container-high transition-colors" onClick={() => setActiveTab('insumos')}>
+        <div className="bg-surface-container rounded-2xl md:rounded-3xl p-4 md:p-6 border border-outline-variant/10 shadow-xl relative overflow-hidden group cursor-pointer hover:bg-surface-container-high transition-colors" onClick={() => setActiveTab('insumos')}>
            <div className="flex items-center gap-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border border-outline-variant/10 transition-colors ${insumoAlerts.length > 0 ? 'bg-error/10 text-error' : 'bg-surface-container-highest text-outline-variant'}`}><AlertTriangle size={24} /></div>
               <div><p className="text-xs font-black text-outline-variant uppercase tracking-widest">Alertas</p><p className={`text-3xl font-black tracking-tighter ${insumoAlerts.length > 0 ? 'text-error' : 'text-on-surface'}`}>{insumoAlerts.length}</p></div>
@@ -363,8 +363,8 @@ export default function Checklist() {
 
       {isManagement ? (
         <div className="space-y-12">
-           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-outline-variant/10 pb-8">
-              <div><h3 className="text-3xl font-black text-on-surface uppercase tracking-tighter leading-none mb-1">Radar de Estações</h3><p className="text-xs text-outline-variant font-bold uppercase tracking-widest italic">Monitoramento global de produtividade e alertas táticos.</p></div>
+           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 border-b border-outline-variant/10 pb-6 md:pb-8">
+              <div><h3 className="text-xl md:text-3xl font-black text-on-surface uppercase tracking-tighter leading-none mb-1">Radar de Estações</h3><p className="text-[10px] md:text-xs text-outline-variant font-bold uppercase tracking-widest italic">Monitoramento global.</p></div>
               <div className="flex items-center gap-3">
                  <div className="flex bg-surface-container-low p-1 rounded-xl border border-outline-variant/10 shadow-sm">
                     <button onClick={() => setActiveShift('manha')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeShift === 'manha' ? 'bg-primary text-on-primary shadow-md' : 'text-outline-variant hover:text-on-surface'}`}>Manhã</button>
@@ -536,7 +536,7 @@ export default function Checklist() {
       {isAddModalOpen && (
         <div className="fixed inset-0 z-[100] grid place-items-center p-4">
            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsAddModalOpen(false)} />
-           <div className="bg-surface-container-high border border-outline-variant/20 w-full max-w-lg rounded-[2rem] p-8 shadow-2xl relative z-20 animate-in zoom-in-95 duration-300">
+           <div className="bg-surface-container-high border border-outline-variant/20 w-full max-w-lg rounded-2xl md:rounded-[2rem] p-5 md:p-8 shadow-2xl relative z-20 animate-in zoom-in-95 duration-300 max-h-[85vh] overflow-y-auto">
              <div className="flex justify-between items-start mb-8">
                <div><span className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-1">Directiva de Cozinha</span><h2 className="text-2xl font-black text-on-surface tracking-tighter uppercase">Nova Tarefa</h2></div>
                <button onClick={() => setIsAddModalOpen(false)} className="w-10 h-10 rounded-xl hover:text-red-400 transition-colors"><X size={24}/></button>

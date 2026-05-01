@@ -41,40 +41,40 @@
 }
 
 .light {
-  /* Modo Normal (Light) Theme */
-  --primary: #1d4457;
-  --primary-container: #a6cce3;
-  --primary-dim: #254b5e;
+  /* Premium Cool Light Theme (Apple-inspired macOS/iOS) */
+  --primary: #0a2b42; /* Cool deep navy slate */
+  --primary-container: #e1edf8;
+  --primary-dim: #144263;
   
-  --secondary: #8c723a;
-  --secondary-container: #f5eddb;
-  --secondary-dim: #8c723a;
+  --secondary: #8c7d65; /* Muted cool taupe/gold */
+  --secondary-container: #f2efea;
+  --secondary-dim: #a3947a;
   
-  --tertiary: #2c6a49;
-  --tertiary-dim: #adeec4;
+  --tertiary: #1c543f;
+  --tertiary-dim: #84ccab;
   
-  --error: #b3261e;
-  --error-container: #f9dedc;
+  --error: #ff3b30; /* Apple's classic red */
+  --error-container: #ffeceb;
   
-  --surface: #fdfbff;
-  --surface-dim: #fdfbff;
-  --surface-bright: #f0f1f9;
-  --surface-variant: #e1e2ec;
+  --surface: #f5f5f7; /* Apple's iconic light gray background */
+  --surface-dim: #e5e5ea;
+  --surface-bright: #ffffff; /* Pure white for bright highlights */
+  --surface-variant: #d1d1d6;
   
-  --surface-container-lowest: #ffffff;
-  --surface-container-low: #f7f3f9;
-  --surface-container: #f1edf4;
-  --surface-container-high: #ebe8ee;
-  --surface-container-highest: #e5e2e9;
+  --surface-container-lowest: #ffffff; /* Cards and glass bases */
+  --surface-container-low: #f2f2f7;
+  --surface-container: #e5e5ea;
+  --surface-container-high: #d1d1d6;
+  --surface-container-highest: #c7c7cc;
   
-  --on-surface: #1a1c1e;
-  --on-surface-variant: #44474e;
+  --on-surface: #1c1c1e; /* Apple's soft black */
+  --on-surface-variant: #8e8e93; /* Apple's classic secondary text */
   --on-primary: #ffffff;
   --on-secondary: #ffffff;
   --on-tertiary: #ffffff;
   
-  --outline: #74777f;
-  --outline-variant: #c4c6d0;
+  --outline: #8e8e93; /* Apple's classic secondary gray, ensures visibility */
+  --outline-variant: #a1a1a6; /* Slightly lighter but still very readable */
 }
 
 @theme {

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { NotificationService } from '../services/NotificationService';
 
 export type DutyStatus = 'trabalho' | 'folga' | 'compensa';
 
@@ -35,6 +36,17 @@ export function useSchedule(monthKey?: string) {
         .upsert([record], { onConflict: 'user_id,date' })
         .select();
       if (error) throw error;
+      
+      const statusLabel = record.status === 'folga' ? 'Folga' : record.status === 'compensa' ? 'Compensação' : 'Trabalho';
+      const type = record.status === 'trabalho' ? 'warning' : 'success';
+      const [year, month, day] = record.date.split('-');
+      
+      await NotificationService.notifyUser(record.user_id, {
+        title: 'Escala Alterada',
+        message: `Sua escala para o dia ${day}/${month}/${year} foi definida como ${statusLabel}.`,
+        type
+      });
+
       return data;
     },
     onSuccess: () => {
