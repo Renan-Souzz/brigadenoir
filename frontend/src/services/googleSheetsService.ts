@@ -7,8 +7,14 @@ import { supabase } from '../lib/supabase';
 
 export const syncToGoogleSheets = async (data: any) => {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const providerToken = session?.provider_token;
+
     const { data: response, error } = await supabase.functions.invoke('export-sheets', {
-      body: { data }
+      body: { 
+        data,
+        googleToken: providerToken
+      }
     });
 
     if (error) throw error;
