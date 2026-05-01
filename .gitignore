@@ -28,3 +28,8 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Lockfiles (prevent Vercel optional deps issue with rollup)
+package-lock.json
+frontend/package-lock.json
+backend/package-lock.json
