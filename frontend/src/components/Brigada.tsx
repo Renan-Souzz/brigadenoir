@@ -131,20 +131,29 @@ export default function Brigada() {
   };
 
   const handleResetPassword = async (user: Profile) => {
-    const email = await showPrompt(
-      `Redefinição de Senha`,
-      `Por favor, confirme o E-MAIL do funcionário [${user.full_name}] para enviarmos o link temporário de acesso:`
+    const newPassword = await showPrompt(
+      `Nova Senha para ${user.full_name}`,
+      `Digite a nova senha (mínimo 6 caracteres). O funcionário poderá usar essa senha imediatamente, sem necessidade de confirmar por e-mail.`
     );
-    if (!email || !email.trim()) return;
+    if (!newPassword || !newPassword.trim()) return;
+
+    if (newPassword.trim().length < 6) {
+      showAlert('Senha Inválida', 'A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: window.location.origin
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('admin-reset-password', {
+        body: { targetUserId: user.id, newPassword: newPassword.trim() },
       });
-      if (error) throw error;
-      showAlert('Link Enviado', `O link de acesso temporário foi encaminhado para ${email}. No próximo login, será solicitada a criação de uma nova senha.`);
+
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+
+      showAlert('Senha Alterada', `A senha de ${user.full_name} foi atualizada com sucesso! Ele(a) já pode usar a nova senha.`);
     } catch (err: any) {
-      showAlert('Erro no Envio', err.message || 'Falha ao enviar link de redefinição.');
+      showAlert('Erro', err.message || 'Falha ao alterar a senha.');
     }
   };
 
