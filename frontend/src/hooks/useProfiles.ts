@@ -39,7 +39,20 @@ export function useProfiles() {
     },
   });
 
-  return { ...query, updateProfile: updateProfile.mutateAsync };
+  const deleteProfile = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+    },
+  });
+
+  return { ...query, updateProfile: updateProfile.mutateAsync, deleteProfile: deleteProfile.mutateAsync };
 }
 
 export function useInvites() {

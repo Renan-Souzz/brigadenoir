@@ -12,7 +12,8 @@ import {
   Plus,
   RefreshCcw,
   Key,
-  Trash2
+  Trash2,
+  Pencil
 } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
@@ -50,7 +51,7 @@ const STATION_LABELS: Record<string, string> = {
 export default function Brigada() {
   const { profile, isManagement, isStationLead } = useAuth();
   const { showAlert, showConfirm, showPrompt } = useModal();
-  const { data: users = [], isLoading: usersLoading, updateProfile, refetch: refetchUsers } = useProfiles();
+  const { data: users = [], isLoading: usersLoading, updateProfile, deleteProfile, refetch: refetchUsers } = useProfiles();
   const { data: invites = [], isLoading: invitesLoading, generateInvite, deleteInvite } = useInvites();
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -61,6 +62,7 @@ export default function Brigada() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Local state for editing
+  const [editName, setEditName] = useState('');
   const [editRole, setEditRole] = useState<AppRole | ''>('');
   const [editStation, setEditStation] = useState<KitchenStation | ''>('');
   const [editShift, setEditShift] = useState<'manha' | 'tarde'>('manha');
@@ -97,6 +99,7 @@ export default function Brigada() {
 
   const startEditing = (user: Profile) => {
     setEditingId(user.id);
+    setEditName(user.full_name || '');
     setEditRole(user.role as AppRole);
     setEditStation(user.station as KitchenStation || '');
     setEditShift(user.shift as 'manha' | 'tarde' || 'manha');
@@ -104,6 +107,7 @@ export default function Brigada() {
 
   const cancelEditing = () => {
     setEditingId(null);
+    setEditName('');
     setEditRole('');
     setEditStation('');
   };
@@ -113,6 +117,7 @@ export default function Brigada() {
       await updateProfile({ 
         userId, 
         updates: { 
+          full_name: editName.trim() || undefined,
           role: editRole as AppRole, 
           station: editStation as KitchenStation,
           shift: editShift
@@ -140,6 +145,20 @@ export default function Brigada() {
       showAlert('Link Enviado', `O link de acesso temporário foi encaminhado para ${email}. No próximo login, será solicitada a criação de uma nova senha.`);
     } catch (err: any) {
       showAlert('Erro no Envio', err.message || 'Falha ao enviar link de redefinição.');
+    }
+  };
+
+  const handleDeleteMember = async (user: Profile) => {
+    const confirmed = await showConfirm(
+      'Excluir Membro',
+      `Tem certeza que deseja remover "${user.full_name}" da brigada? Esta ação não pode ser desfeita.`
+    );
+    if (!confirmed) return;
+    try {
+      await deleteProfile(user.id);
+      showAlert('Membro Removido', `${user.full_name} foi removido da brigada com sucesso.`);
+    } catch (err: any) {
+      showAlert('Erro', 'Não foi possível remover o membro: ' + err.message);
     }
   };
 
@@ -298,7 +317,17 @@ export default function Brigada() {
                         <div className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-[10px] font-bold text-primary border border-primary/20">
                           {u.full_name?.substring(0, 2).toUpperCase() || '??'}
                         </div>
-                        <span className="text-sm font-semibold text-on-surface">{u.full_name || 'Usuário Sem Nome'}</span>
+                        {editingId === u.id ? (
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="bg-surface-container-highest border-none rounded-lg p-2 text-sm font-semibold text-on-surface focus:ring-1 focus:ring-primary w-full max-w-[200px]"
+                            placeholder="Nome do funcionário"
+                          />
+                        ) : (
+                          <span className="text-sm font-semibold text-on-surface">{u.full_name || 'Usuário Sem Nome'}</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -388,23 +417,32 @@ export default function Brigada() {
                       ) : (
                         <div className="flex items-center gap-1 justify-end">
                           {isManagement && (
-                            <button 
-                              onClick={() => handleResetPassword(u)}
-                              title="Redefinir Senha"
-                              className="p-2 transition-colors rounded-lg text-outline-variant hover:text-secondary hover:bg-secondary/10"
-                            >
-                              <Key size={18} />
-                            </button>
+                            <>
+                              <button 
+                                onClick={() => handleResetPassword(u)}
+                                title="Redefinir Senha"
+                                className="p-2 transition-colors rounded-lg text-outline-variant hover:text-secondary hover:bg-secondary/10"
+                              >
+                                <Key size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteMember(u)}
+                                title="Excluir Membro"
+                                className="p-2 transition-colors rounded-lg text-outline-variant hover:text-red-400 hover:bg-red-400/10"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </>
                           )}
                           <button 
                             disabled={!canEditUser(u)}
                             onClick={() => startEditing(u)}
                             title="Editar Dados"
                             className={`p-2 transition-colors rounded-lg ${
-                              canEditUser(u) ? 'text-outline-variant hover:text-on-surface hover:bg-surface-container-highest' : 'opacity-20 cursor-not-allowed'
+                              canEditUser(u) ? 'text-outline-variant hover:text-primary hover:bg-primary/10' : 'opacity-20 cursor-not-allowed'
                             }`}
                           >
-                            <MoreVertical size={18} />
+                            <Pencil size={16} />
                           </button>
                         </div>
                       )}
