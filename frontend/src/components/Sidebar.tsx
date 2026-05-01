@@ -65,7 +65,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
         <div>
           <h1 className="text-xl font-black text-on-surface tracking-tighter leading-none">Brigade Noir</h1>
           <p className="text-[8px] uppercase tracking-widest font-bold text-outline-variant mt-1.5 translate-y-[-2px]">
-            {profile?.role ? ROLE_LABELS[profile.role] : 'Executive Station'}
+            Executive Station
           </p>
         </div>
       </div>

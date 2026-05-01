@@ -210,7 +210,6 @@ function TeamFolgasCard({ profiles, schedule }: { profiles: any[]; schedule: any
               <div className={`w-2 h-2 rounded-full ${m.todayStatus === 'folga' ? 'bg-secondary shadow-[0_0_8px_rgba(var(--md-sys-color-secondary-rgb),0.4)]' : m.todayStatus === 'compensa' ? 'bg-amber-400' : 'bg-primary/40'}`} />
               <div>
                 <span className="text-[11px] font-black text-on-surface uppercase tracking-tight">{m.name}</span>
-                <span className="text-[8px] text-outline-variant font-bold uppercase tracking-widest ml-2">{m.role}</span>
               </div>
             </div>
             <div className="text-right">
