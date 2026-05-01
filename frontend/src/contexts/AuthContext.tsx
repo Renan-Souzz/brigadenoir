@@ -65,6 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       
+      // Clear hash leftover from OAuth redirect
+      if (window.location.hash === '#' || window.location.hash === '') {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+
       if (_event === 'PASSWORD_RECOVERY') {
         setRequirePasswordChange(true);
       }

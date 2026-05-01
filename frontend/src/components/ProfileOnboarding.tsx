@@ -10,6 +10,7 @@ export default function ProfileOnboarding() {
   const { showAlert } = useModal();
   const [inviteCode, setInviteCode] = useState('');
   const [station, setStation] = useState('');
+  const [shift, setShift] = useState('manha');
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
   const [loading, setLoading] = useState(false);
 
@@ -19,23 +20,21 @@ export default function ProfileOnboarding() {
     
     setLoading(true);
     try {
-      // 1. Atualizar o perfil no banco de dados com os dados técnicos
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: fullName,
-          station: station,
-          invite_code: inviteCode, // Isso aciona a lógica de permissões no backend (Trigger/Webhook se existir)
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user?.id);
+      // 1. Chamar a função RPC para ativar o perfil e validar o código
+      const { error } = await supabase.rpc('activate_profile', {
+        p_invite_code: inviteCode,
+        p_station: station,
+        p_shift: shift,
+        p_full_name: fullName
+      });
 
       if (error) throw error;
 
       showAlert('Perfil Configurado', 'Sua conta técnica foi ativada com sucesso!');
       await refreshProfile(); // Recarrega o perfil para liberar as abas
     } catch (err: any) {
-      showAlert('Erro na Ativação', 'Código de convite inválido ou erro na conexão.');
+      console.error('Erro na ativação:', err);
+      showAlert('Erro na Ativação', err.message || 'Código de convite inválido ou erro na conexão.');
     } finally {
       setLoading(false);
     }
@@ -67,7 +66,7 @@ export default function ProfileOnboarding() {
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full bg-surface-container-highest border-none rounded-2xl py-5 pl-14 pr-4 text-on-surface focus:ring-2 focus:ring-primary/40 transition-all font-black uppercase text-sm"
+                  className="w-full bg-surface-container-highest border-none rounded-xl py-4 pl-12 pr-4 text-on-surface focus:ring-1 focus:ring-primary transition-all font-semibold"
                   placeholder="Seu Nome de Chef"
                 />
               </div>
@@ -82,7 +81,7 @@ export default function ProfileOnboarding() {
                   required
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                  className="w-full bg-surface-container-highest border-none rounded-2xl py-5 pl-14 pr-4 text-on-surface focus:ring-2 focus:ring-primary/40 transition-all font-black uppercase text-sm"
+                  className="w-full bg-surface-container-highest border-none rounded-xl py-4 pl-12 pr-4 text-on-surface focus:ring-1 focus:ring-primary transition-all font-semibold"
                   placeholder="BN-XXXXXX"
                 />
               </div>
@@ -99,7 +98,7 @@ export default function ProfileOnboarding() {
                   required
                   value={station}
                   onChange={(e) => setStation(e.target.value)}
-                  className="w-full bg-surface-container-highest border-none rounded-2xl py-5 pl-14 pr-4 text-on-surface focus:ring-2 focus:ring-primary/40 transition-all font-black uppercase text-sm appearance-none cursor-pointer"
+                  className="w-full bg-surface-container-highest border-none rounded-xl py-4 pl-12 pr-4 text-on-surface focus:ring-1 focus:ring-primary transition-all font-semibold appearance-none cursor-pointer"
                 >
                   <option value="" disabled>Selecione sua Praça</option>
                   <option value="saucier">Saucier</option>
@@ -112,13 +111,41 @@ export default function ProfileOnboarding() {
               </div>
             </div>
 
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-outline mb-3 block">Turno de Trabalho</label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShift('manha')}
+                  className={`py-4 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                    shift === 'manha' 
+                    ? 'bg-primary/20 border-primary text-primary shadow-[0_0_20px_rgba(var(--md-sys-color-primary-rgb),0.2)]' 
+                    : 'bg-surface-container-highest border-transparent text-outline-variant hover:border-outline-variant/30'
+                  }`}
+                >
+                  Manhã (5h - 15h)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShift('tarde')}
+                  className={`py-4 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                    shift === 'tarde' 
+                    ? 'bg-secondary/20 border-secondary text-secondary shadow-[0_0_20px_rgba(var(--md-sys-color-secondary-rgb),0.2)]' 
+                    : 'bg-surface-container-highest border-transparent text-outline-variant hover:border-outline-variant/30'
+                  }`}
+                >
+                  Tarde (15h - 0h)
+                </button>
+              </div>
+            </div>
+
             <Button 
                 type="submit" 
                 variant="primary" 
                 size="lg" 
-                className="w-full py-6 shadow-2xl shadow-primary/20" 
+                className="w-full" 
                 loading={loading}
-                icon={<CheckCircle2 size={20} />}
+                icon={<CheckCircle2 size={18} />}
             >
               Ativar Credenciais
             </Button>
