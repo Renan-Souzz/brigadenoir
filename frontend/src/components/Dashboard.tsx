@@ -337,15 +337,6 @@ export default function Dashboard() {
     return t.length;
   }, [tasks, isManagement, profile]);
 
-  // Team online card
-  const teamOnline = useMemo(() => {
-    return profiles.map(m => {
-      const lastSeen = m.last_seen ? new Date(m.last_seen).getTime() : 0;
-      const isOnline = (Date.now() - lastSeen) < (3 * 60 * 1000);
-      return { ...m, isOnline };
-    });
-  }, [profiles]);
-
   return (
     <PageLayout>
       <PageHeader hasNotification />
@@ -367,23 +358,6 @@ export default function Dashboard() {
 
         {/* Management: Team Folgas */}
         {isManagement && <TeamFolgasCard profiles={profiles} schedule={allSchedule} />}
-
-        {/* Team Online (compact) */}
-        <div className="bg-surface-container-low/40 backdrop-blur-xl border border-outline-variant/10 rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Icons.Wifi size={14} className="text-primary" />
-            <span className="text-[10px] font-black text-outline-variant uppercase tracking-[0.2em]">Equipe Online</span>
-            <span className="text-[9px] text-primary font-black ml-auto">{teamOnline.filter(t => t.isOnline).length}/{teamOnline.length}</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {teamOnline.map(m => (
-              <div key={m.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${m.isOnline ? 'bg-primary/5 border-primary/20' : 'bg-surface-container border-outline-variant/5 opacity-50'}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${m.isOnline ? 'bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]' : 'bg-red-500/40'}`} />
-                <span className="text-[10px] font-black text-on-surface uppercase tracking-tight">{m.full_name?.split(' ')[0]}</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* Alerts */}
         {alerts.length > 0 && (
