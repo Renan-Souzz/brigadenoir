@@ -259,3 +259,30 @@
 .animate-reverse-spin {
   animation: reverse-spin 1s linear infinite;
 }
+
+/* ─── Print Styles ─────────────────────────────────────────────────────────── */
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print\\:hidden,
+  nav, header, aside,
+  [class*="bottom-nav"],
+  [class*="sidebar"],
+  [class*="PageHeader"] {
+    display: none !important;
+  }
+
+  #almox-report-content {
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+}

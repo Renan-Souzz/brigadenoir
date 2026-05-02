@@ -20,6 +20,7 @@ export function useProfiles() {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
+        .neq('role', 'admin')
         .order('full_name');
       
       if (error) throw error;

@@ -337,7 +337,7 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                 <thead>
                   <tr className="bg-surface-container-highest/10">
                     <th className="pl-10 pr-4 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 border-r border-outline-variant/5">Insumo Técnico</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 border-r border-outline-variant/5 text-center">Quantidade</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 border-r border-outline-variant/5 text-center">Qtde / Unid</th>
                     <th className="px-4 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 border-r border-outline-variant/5 text-center">Aproveitamento</th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 border-r border-outline-variant/5 text-center">Peso Líquido</th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 text-center">Custo Real</th>
@@ -368,11 +368,24 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                            </div>
                         </td>
                         <td className="px-4 py-4 border-r border-outline-variant/5 w-32">
-                           <input 
-                             type="number" step="0.001" value={ing.pb_gramas} 
-                             onChange={e => handleUpdateIngrediente(ing.id!, 'pb_gramas', parseFloat(e.target.value))} 
-                             className="w-full bg-surface-container-highest/20 rounded-xl p-3 text-center text-sm font-black text-on-surface outline-none focus:ring-1 focus:ring-primary/40 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                           />
+                           <div className="relative">
+                             <input 
+                               type="number" step="0.001" 
+                               value={(() => {
+                                 const isLarge = insumoData?.unidade_compra?.toUpperCase() === 'KG' || insumoData?.unidade_compra?.toUpperCase() === 'L';
+                                 return isLarge ? (ing.pb_gramas || 0) / 1000 : ing.pb_gramas;
+                               })()} 
+                               onChange={e => {
+                                 const val = parseFloat(e.target.value) || 0;
+                                 const isLarge = insumoData?.unidade_compra?.toUpperCase() === 'KG' || insumoData?.unidade_compra?.toUpperCase() === 'L';
+                                 handleUpdateIngrediente(ing.id!, 'pb_gramas', isLarge ? val * 1000 : val);
+                               }} 
+                               className="w-full bg-surface-container-highest/20 rounded-xl p-3 text-center text-sm font-black text-on-surface outline-none focus:ring-1 focus:ring-primary/40 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                             />
+                             <span className="absolute right-2 bottom-1 text-[7px] font-black text-outline-variant/40 uppercase">
+                               {insumoData?.unidade_compra || insumoData?.unidade_base || 'G'}
+                             </span>
+                           </div>
                         </td>
                         <td className="px-2 py-4 border-r border-outline-variant/5 w-28">
                            <div className="relative">
@@ -391,8 +404,16 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                         </td>
                         <td className="px-6 py-4 border-r border-outline-variant/5 w-32 bg-primary/[0.01] text-center">
                            <div className="flex flex-col">
-                             <span className="text-sm font-black text-on-surface/40 leading-none">{plFinal.toFixed(1)}</span>
-                             <span className="text-[9px] font-black text-outline-variant/30 uppercase mt-1">{insumoData?.unidade_base}</span>
+                             <span className="text-sm font-black text-on-surface/40 leading-none">
+                               {(() => {
+                                 const isLarge = insumoData?.unidade_compra?.toUpperCase() === 'KG' || insumoData?.unidade_compra?.toUpperCase() === 'L';
+                                 const val = isLarge ? plFinal / 1000 : plFinal;
+                                 return val >= 1 ? val.toFixed(2) : val.toFixed(3);
+                               })()}
+                             </span>
+                             <span className="text-[9px] font-black text-outline-variant/30 uppercase mt-1">
+                               {insumoData?.unidade_compra || insumoData?.unidade_base || 'G'}
+                             </span>
                            </div>
                         </td>
                         <td className="px-6 py-4 w-40 bg-primary/[0.03] text-center">

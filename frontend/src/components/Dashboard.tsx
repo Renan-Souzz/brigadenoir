@@ -455,7 +455,44 @@ export default function Dashboard() {
         <StatsRow weekPax={paxStats.weekPax} monthPax={paxStats.monthPax} efficiency={efficiency} stationName={stationLabel} isManagement={isManagement} onClick={() => setActiveTab('insumos')} />
 
         {/* Management: Team Folgas */}
-        {isManagement && <TeamFolgasCard profiles={profiles} schedule={allSchedule} />}
+        {isManagement && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             <TeamFolgasCard profiles={profiles} schedule={allSchedule} />
+             
+             {/* P3-C: Widget Estoque em Alerta */}
+             <div className="bg-surface-container-low/40 backdrop-blur-xl border border-outline-variant/10 rounded-[2rem] p-6 md:p-8">
+               <div className="flex items-center gap-3 mb-6">
+                 <div className="p-2.5 rounded-xl bg-error/10 border border-error/20">
+                   <Icons.AlertTriangle size={18} className="text-error" />
+                 </div>
+                 <div>
+                   <h4 className="text-sm font-black text-on-surface uppercase tracking-tight">Estoque em Alerta</h4>
+                   <p className="text-[9px] text-outline-variant font-bold uppercase tracking-widest mt-0.5">Top 5 Críticos Globais</p>
+                 </div>
+               </div>
+               <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+                 {insumos.filter(i => i.quantity <= i.min_stock).sort((a, b) => a.quantity - b.quantity).slice(0, 5).map(i => (
+                   <div key={i.id} onClick={() => setActiveTab('insumos')} className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-surface-container/40 transition-colors cursor-pointer group border border-transparent hover:border-outline-variant/10">
+                     <div className="flex items-center gap-3">
+                       <div className="w-2 h-2 rounded-full bg-error shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse" />
+                       <div>
+                         <span className="text-[11px] font-black text-on-surface uppercase tracking-tight">{i.name}</span>
+                         <p className="text-[8px] text-outline-variant uppercase font-bold tracking-widest">{i.station.replace('_', ' ')}</p>
+                       </div>
+                     </div>
+                     <div className="text-right flex items-center gap-2">
+                       <span className="text-[10px] font-black text-error uppercase tracking-tight bg-error/10 px-2 py-0.5 rounded">{i.quantity} {i.unit}</span>
+                       <Icons.ChevronRight size={14} className="text-outline-variant/30 group-hover:text-primary transition-colors" />
+                     </div>
+                   </div>
+                 ))}
+                 {insumos.filter(i => i.quantity <= i.min_stock).length === 0 && (
+                   <p className="text-[10px] text-outline-variant italic text-center py-4">Nenhum alerta crítico no momento.</p>
+                 )}
+               </div>
+             </div>
+          </div>
+        )}
 
         {/* Alerts */}
         {alerts.length > 0 && (
