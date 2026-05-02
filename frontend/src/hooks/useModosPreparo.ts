@@ -7,6 +7,8 @@ export interface ModoPreparo {
   categoria: string;
   passos: string[];
   pracas: string[];
+  tempo_preparo?: number;
+  rendimento?: number;
   ticket_avg?: string;
   status?: string;
   image_url?: string;

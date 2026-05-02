@@ -22,18 +22,22 @@ import PageHeader from '../shared/PageHeader';
 import Button from '../shared/Button';
 import { useModal } from '../../contexts/ModalContext';
 import { useFTFichas, FTFicha } from '../../hooks/useFTFichas';
+import { useAuth } from '../../contexts/AuthContext';
 import FichaEditor from './FichaEditor';
 import { calcularResumoFicha, verificarAlertasAnvisa, detectarAlergenos } from '../../utils/engineFT';
 
 const CATEGORIAS = ['Entrada', 'Prato Principal', 'Sobremesa', 'Bebida', 'Base / Molho'];
 
 export default function FichaTecnicaList() {
+  const { profile } = useAuth();
   const { fichas, isLoading, deleteFicha } = useFTFichas();
   const { showConfirm, showAlert } = useModal();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+
+  const canEdit = !!profile?.role && ['admin', 'ficha_tecnica', 'chef_executivo', 'fichas'].includes(profile.role);
 
   // 1. Helpers for Calculations in List
   const calculateFichaFinance = (ficha: FTFicha) => {
@@ -148,16 +152,18 @@ export default function FichaTecnicaList() {
             })}
           </div>
 
-          <Button 
-            variant="primary" 
-            fullWidth 
-            size="lg"
-            icon={<Plus size={20} />} 
-            onClick={() => setIsCreating(true)}
-            className="mt-8 shadow-2xl shadow-primary/30"
-          >
-            Nova Engenharia Técnica
-          </Button>
+          {canEdit && (
+            <Button 
+              variant="primary" 
+              fullWidth 
+              size="lg"
+              icon={<Plus size={20} />} 
+              onClick={() => setIsCreating(true)}
+              className="mt-8 shadow-2xl shadow-primary/30"
+            >
+              Nova Engenharia Técnica
+            </Button>
+          )}
         </div>
 
         {/* Listagem Principal */}
@@ -271,20 +277,29 @@ export default function FichaTecnicaList() {
 
                     {/* Actions */}
                     <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-outline-variant/10 w-full relative z-10">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setEditingId(f.id); }}
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-outline-variant hover:text-primary hover:bg-primary/10 transition-colors"
-                        title="Editar Ficha"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button 
-                        onClick={(e) => handleDeleteFicha(e, f.id, f.nome)}
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-outline-variant hover:text-error hover:bg-error/10 transition-colors"
-                        title="Excluir Ficha"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {canEdit && (
+                        <>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setEditingId(f.id); }}
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-outline-variant hover:text-primary hover:bg-primary/10 transition-colors"
+                            title="Editar Ficha"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button 
+                            onClick={(e) => handleDeleteFicha(e, f.id, f.nome)}
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-outline-variant hover:text-error hover:bg-error/10 transition-colors"
+                            title="Excluir Ficha"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </>
+                      )}
+                      {!canEdit && (
+                        <div className="text-[9px] font-black uppercase text-outline-variant/40 py-3">
+                          Apenas Visualização
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

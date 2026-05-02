@@ -63,7 +63,7 @@ const CORE_MOBILE_ITEMS: Array<{ id: TabId; label: string; icon: string; minRole
   { id: 'dashboard',    label: 'Início',    icon: 'LayoutDashboard' },
   { id: 'menu',         label: 'Menu',      icon: 'UtensilsCrossed' },
   { id: 'insumos',      label: 'Estoque',   icon: 'Package'         },
-  { id: 'mod_ficha_tecnica', label: 'Ficha Técnica', icon: 'FileSpreadsheet', minRole: ['admin', 'ficha_tecnica', 'chef_executivo', 'fichas'] },
+  { id: 'mod_ficha_tecnica', label: 'Ficha Técnica', icon: 'FileSpreadsheet' },
 ];
 
 /** Secondary items for the 'More' menu. */

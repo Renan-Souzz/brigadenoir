@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [requirePasswordChange, setRequirePasswordChange] = useState(false);
 
   const isAdmin = !!profile?.role && ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'].includes(profile.role);
-  const isManagement = isAdmin;
+  const isManagement = !!profile?.role && ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef', 'chef_de_partie'].includes(profile.role);
   const isStationLead = profile?.role === 'chef_de_partie';
 
   useEffect(() => {

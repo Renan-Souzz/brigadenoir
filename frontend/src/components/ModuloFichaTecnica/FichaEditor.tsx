@@ -23,6 +23,7 @@ import {
 import PageLayout from '../shared/PageLayout';
 import PageHeader from '../shared/PageHeader';
 import Button from '../shared/Button';
+import { useAuth } from '../../contexts/AuthContext';
 import { useFTFichas, FTFicha, FTFichaIngrediente, FTFichaComplemento } from '../../hooks/useFTFichas';
 import { useFTInsumos } from '../../hooks/useFTInsumos';
 import { calcularPLFinal, calcularCustoIngrediente, calcularResumoFicha, verificarAlertasAnvisa, detectarAlergenos } from '../../utils/engineFT';
@@ -37,9 +38,12 @@ interface FichaEditorProps {
 }
 
 export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
+  const { profile } = useAuth();
   const { getFicha, upsertFicha, deleteFicha, isLoading: isFichaLoading } = useFTFichas();
   const { insumos, isLoading: isInsumosLoading } = useFTInsumos();
   const { showAlert, showConfirm } = useModal();
+
+  const canEdit = !!profile?.role && ['admin', 'ficha_tecnica', 'chef_executivo', 'fichas'].includes(profile.role);
 
   // Root States
   const [nome, setNome] = useState('');
@@ -229,7 +233,7 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 md:gap-4">
-          {fichaId && (
+          {fichaId && canEdit && (
             <button 
               onClick={handleDelete}
               className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-error/10 border border-error/20 flex items-center justify-center text-error hover:bg-error hover:text-white transition-all active:scale-90 shadow-lg shadow-error/10"
@@ -274,16 +278,18 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
           >
             Sheets
           </Button>
-          <Button 
-            variant="primary" 
-            size="sm"
-            icon={<Save size={16} />} 
-            loading={isSaving} 
-            onClick={handleSave}
-            className="shadow-2xl shadow-primary/20 flex-1 sm:flex-none"
-          >
-            Salvar
-          </Button>
+          {canEdit && (
+            <Button 
+              variant="primary" 
+              size="sm"
+              icon={<Save size={16} />} 
+              loading={isSaving} 
+              onClick={handleSave}
+              className="shadow-2xl shadow-primary/20 flex-1 sm:flex-none"
+            >
+              Salvar
+            </Button>
+          )}
         </div>
       </div>
 
@@ -298,8 +304,9 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                   type="text" 
                   value={nome} 
                   onChange={e => setNome(e.target.value)} 
+                  disabled={!canEdit}
                   placeholder="EX: RISOTTO AL FUNGHI PORCINI..." 
-                  className="w-full bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 text-base font-black text-on-surface outline-none transition-all uppercase placeholder:text-outline-variant/30" 
+                  className={`w-full bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 text-base font-black text-on-surface outline-none transition-all uppercase placeholder:text-outline-variant/30 ${!canEdit && 'cursor-not-allowed opacity-80'}`} 
                  />
                </div>
                <div>
@@ -308,7 +315,8 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                    <select 
                     value={categoria} 
                     onChange={e => setCategoria(e.target.value)} 
-                    className="w-full appearance-none bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 pr-12 text-sm font-black text-on-surface outline-none uppercase cursor-pointer"
+                    disabled={!canEdit}
+                    className={`w-full appearance-none bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 pr-12 text-sm font-black text-on-surface outline-none uppercase cursor-pointer ${!canEdit && 'cursor-not-allowed opacity-80'}`}
                    >
                      {['Entrada', 'Prato Principal', 'Sobremesa', 'Bebida', 'Base / Molho'].map(cat => (
                        <option key={cat} value={cat} className="bg-surface-container-highest text-on-surface font-black uppercase">{cat}</option>
@@ -324,7 +332,8 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                       type="number" 
                       value={rendimento} 
                       onChange={e => setRendimento(parseFloat(e.target.value))} 
-                      className="w-full bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 text-base font-black text-on-surface outline-none transition-all" 
+                      disabled={!canEdit}
+                      className={`w-full bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 text-base font-black text-on-surface outline-none transition-all ${!canEdit && 'cursor-not-allowed opacity-80'}`} 
                     />
                     <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[9px] font-black text-outline-variant/40 uppercase">KG / UN</span>
                   </div>
@@ -359,7 +368,8 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                              <select 
                               value={ing.insumo_id} 
                               onChange={e => handleUpdateIngrediente(ing.id!, 'insumo_id', e.target.value)}
-                              className="w-full appearance-none bg-transparent border-none p-3 pl-0 text-sm font-black text-on-surface outline-none cursor-pointer group-hover/select:text-primary transition-colors uppercase"
+                              disabled={!canEdit}
+                              className={`w-full appearance-none bg-transparent border-none p-3 pl-0 text-sm font-black text-on-surface outline-none cursor-pointer group-hover/select:text-primary transition-colors uppercase ${!canEdit && 'cursor-not-allowed'}`}
                              >
                                <option value="" className="bg-surface-container-highest">SELECIONAR INSUMO...</option>
                                {insumos.map(i => <option key={i.id} value={i.id} className="bg-surface-container-highest">{i.nome}</option>)}
@@ -380,7 +390,8 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                                  const isLarge = insumoData?.unidade_compra?.toUpperCase() === 'KG' || insumoData?.unidade_compra?.toUpperCase() === 'L';
                                  handleUpdateIngrediente(ing.id!, 'pb_gramas', isLarge ? val * 1000 : val);
                                }} 
-                               className="w-full bg-surface-container-highest/20 rounded-xl p-3 text-center text-sm font-black text-on-surface outline-none focus:ring-1 focus:ring-primary/40 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                               disabled={!canEdit}
+                               className={`w-full bg-surface-container-highest/20 rounded-xl p-3 text-center text-sm font-black text-on-surface outline-none focus:ring-1 focus:ring-primary/40 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${!canEdit && 'cursor-not-allowed'}`} 
                              />
                              <span className="absolute right-2 bottom-1 text-[7px] font-black text-outline-variant/40 uppercase">
                                {insumoData?.unidade_compra || insumoData?.unidade_base || 'G'}
@@ -397,7 +408,8 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                                  const newFc = pct > 0 ? 100 / pct : 1;
                                  handleUpdateIngrediente(ing.id!, 'fc', parseFloat(newFc.toFixed(4)));
                                }}
-                               className={`w-full bg-surface-container-highest/20 rounded-xl p-3 pr-8 text-center text-sm font-black outline-none focus:ring-1 focus:ring-primary/40 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${aproveitamento < 70 ? 'text-warning' : aproveitamento < 50 ? 'text-error' : 'text-on-surface'}`}
+                               disabled={!canEdit}
+                               className={`w-full bg-surface-container-highest/20 rounded-xl p-3 pr-8 text-center text-sm font-black outline-none focus:ring-1 focus:ring-primary/40 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${aproveitamento < 70 ? 'text-warning' : aproveitamento < 50 ? 'text-error' : 'text-on-surface'} ${!canEdit && 'cursor-not-allowed'}`}
                              />
                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-outline-variant/40">%</span>
                            </div>
@@ -420,25 +432,29 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                            <span className="text-sm font-black text-primary tracking-tight">R$ {custo.toFixed(2)}</span>
                         </td>
                         <td className="pr-10 text-right w-16">
-                          <button 
-                            onClick={() => handleRemoveIngrediente(ing.id!)} 
-                            className="w-10 h-10 rounded-xl flex items-center justify-center text-outline-variant hover:text-error hover:bg-error/10 opacity-0 group-hover:opacity-100 transition-all duration-300"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                          {canEdit && (
+                            <button 
+                              onClick={() => handleRemoveIngrediente(ing.id!)} 
+                              className="w-10 h-10 rounded-xl flex items-center justify-center text-outline-variant hover:text-error hover:bg-error/10 opacity-0 group-hover:opacity-100 transition-all duration-300"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-              <button 
-                onClick={handleAddIngrediente} 
-                className="w-full p-8 text-[11px] font-black uppercase tracking-[0.3em] text-outline-variant hover:text-primary hover:bg-primary/[0.02] transition-all flex items-center justify-center gap-3 border-t border-outline-variant/5 group"
-              >
-                <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" /> 
-                Adicionar Novo Insumo Técnico
-              </button>
+              {canEdit && (
+                <button 
+                  onClick={handleAddIngrediente} 
+                  className="w-full p-8 text-[11px] font-black uppercase tracking-[0.3em] text-outline-variant hover:text-primary hover:bg-primary/[0.02] transition-all flex items-center justify-center gap-3 border-t border-outline-variant/5 group"
+                >
+                  <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" /> 
+                  Adicionar Novo Insumo Técnico
+                </button>
+              )}
             </div>
           </div>
 
@@ -455,7 +471,8 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                   placeholder="DESCREVA O PASSO A PASSO DA EXECUÇÃO, TEMPOS E TEMPERATURAS..." 
                   value={complementos.observacoes} 
                   onChange={e => setComplementos({...complementos, observacoes: e.target.value})}
-                  className="w-full bg-surface-container-low/40 rounded-3xl p-8 text-sm font-medium text-on-surface min-h-[350px] outline-none border-2 border-transparent focus:border-primary/20 transition-all shadow-inner leading-relaxed placeholder:text-outline-variant/20"
+                  disabled={!canEdit}
+                  className={`w-full bg-surface-container-low/40 rounded-3xl p-8 text-sm font-medium text-on-surface min-h-[350px] outline-none border-2 border-transparent focus:border-primary/20 transition-all shadow-inner leading-relaxed placeholder:text-outline-variant/20 ${!canEdit && 'cursor-not-allowed opacity-80'}`}
                 />
              </div>
 
@@ -580,7 +597,8 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                         step="0.50" 
                         value={precoVenda} 
                         onChange={e => setPrecoVenda(parseFloat(e.target.value))} 
-                        className={`w-full bg-surface-container-highest/40 border-2 rounded-[24px] py-6 pl-16 pr-6 text-2xl font-black outline-none transition-all ${isCmvCritical ? 'border-error/30 text-error focus:border-error' : 'border-transparent text-on-surface focus:border-primary/40'}`} 
+                        disabled={!canEdit}
+                        className={`w-full bg-surface-container-highest/40 border-2 rounded-[24px] py-6 pl-16 pr-6 text-2xl font-black outline-none transition-all ${isCmvCritical ? 'border-error/30 text-error focus:border-error' : 'border-transparent text-on-surface focus:border-primary/40'} ${!canEdit && 'cursor-not-allowed opacity-80'}`} 
                       />
                    </div>
                    <div className="mt-5 flex items-center justify-between">
