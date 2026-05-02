@@ -28,18 +28,11 @@ import Button from './shared/Button';
 // Hooks
 import { useDishes, Dish } from '../hooks/useDishes';
 import { useFTFichas } from '../hooks/useFTFichas';
+import { useStations } from '../hooks/useStations';
 import { calcularResumoFicha, verificarAlertasAnvisa, detectarAlergenos } from '../utils/engineFT';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STATION_LABELS: Record<string, string> = {
-  saucier: 'Saucier',
-  garde_manger: 'Garde Manger',
-  entremetier: 'Entremetier',
-  rotisseur: 'Rôtisseur',
-  poissonier: 'Poissonnier',
-  patissier: 'Pâtissier',
-};
 
 const CATEGORIAS = ['Entrada', 'Prato Principal', 'Sobremesa'];
 
@@ -59,6 +52,7 @@ export default function MenuPrincipal() {
   } = useDishes();
 
   const { fichas } = useFTFichas();
+  const { stations, formatStationName } = useStations();
   
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState(searchFilter);
@@ -366,7 +360,7 @@ export default function MenuPrincipal() {
 
                           <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{dish.description}</p>
                           <div className="flex items-center justify-between mt-4 pt-4 border-t border-outline-variant/10">
-                            <span className="px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] text-primary flex items-center gap-1.5"><Flame size={10} /> {STATION_LABELS[dish.praca_responsavel] || dish.praca_responsavel}</span>
+                            <span className="px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] text-primary flex items-center gap-1.5"><Flame size={10} /> {formatStationName(dish.praca_responsavel)}</span>
                             <div className="flex items-center gap-1.5">
                               {canEdit && (isEditing ? (
                                 <div className="flex items-center gap-1 bg-surface-container-highest rounded-lg border border-outline-variant/10 p-1">
@@ -423,7 +417,7 @@ export default function MenuPrincipal() {
               <div><label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2 ml-1">Descrição</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-surface-container border border-outline-variant/20 rounded-xl px-4 py-4 text-sm outline-none focus:border-primary resize-none min-h-[100px]" /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2 ml-1">Categoria</label><select value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-surface-container border border-outline-variant/20 rounded-xl px-4 py-4 text-sm font-black uppercase outline-none">{CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-                <div><label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2 ml-1">Praça</label><select value={pracaResponsavel} onChange={e => setPracaResponsavel(e.target.value)} className="w-full bg-surface-container border border-outline-variant/20 rounded-xl px-4 py-4 text-sm font-black uppercase outline-none">{Object.entries(STATION_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div>
+                <div><label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2 ml-1">Praça</label><select value={pracaResponsavel} onChange={e => setPracaResponsavel(e.target.value)} className="w-full bg-surface-container border border-outline-variant/20 rounded-xl px-4 py-4 text-sm font-black uppercase outline-none">{stations.map((st) => <option key={st.id} value={st.id}>{st.display_name}</option>)}</select></div>
               </div>
             </div>
             <div className="shrink-0 flex gap-3 justify-end p-6 border-t border-outline-variant/10">

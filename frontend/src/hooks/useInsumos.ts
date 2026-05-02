@@ -210,3 +210,49 @@ export function useStationStreaks() {
     }
   });
 }
+export function useInsumoHistory(station?: string) {
+  return useQuery({
+    queryKey: ['insumo_history', station],
+    queryFn: async () => {
+      const fifteenDaysAgo = new Date();
+      fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+      
+      let q = supabase
+        .from('insumo_logs')
+        .select('action, old_qty, new_qty, created_at, insumo:insumos(station)')
+        .gte('created_at', fifteenDaysAgo.toISOString());
+
+      const { data, error } = await q;
+      if (error) throw error;
+
+      // Aggregation logic
+      const historyMap: Record<string, { date: string, entradas: number, saidas: number, total: number }> = {};
+      
+      // Initialize last 15 days
+      for (let i = 0; i <= 15; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const displayDate = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        historyMap[dateStr] = { date: displayDate, entradas: 0, saidas: 0, total: 0 };
+      }
+
+      data.forEach((log: any) => {
+        // Filter by station if provided
+        if (station && station !== 'lideranca' && station !== 'todos' && log.insumo?.station !== station) return;
+
+        const dateStr = log.created_at.split('T')[0];
+        if (!historyMap[dateStr]) return;
+
+        if (log.action === 'entrada' || log.action === 'criacao') {
+          historyMap[dateStr].entradas += (log.new_qty - log.old_qty);
+        } else if (log.action === 'saida') {
+          historyMap[dateStr].saidas += (log.old_qty - log.new_qty);
+        }
+        historyMap[dateStr].total++;
+      });
+
+      return Object.values(historyMap).reverse();
+    }
+  });
+}

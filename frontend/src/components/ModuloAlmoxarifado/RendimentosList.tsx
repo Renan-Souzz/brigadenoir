@@ -61,7 +61,9 @@ export default function RendimentosList() {
         quantity: pl,
         unit: 'Kg',
         expiry_date: validade,
-        station: 'almoxarifado'
+        station: 'almoxarifado',
+        min_stock: 0,
+        userId: profile?.id || ''
       });
 
       // 2. Registra o teste de quebra associado ao insumo criado

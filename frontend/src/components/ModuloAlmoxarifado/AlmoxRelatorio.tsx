@@ -6,7 +6,8 @@ import {
 import { useAlmoxMovimentacoes, AlmoxTipoMov } from '../../hooks/useAlmoxMovimentacoes';
 import { useModal } from '../../contexts/ModalContext';
 import { formatLocalDate } from '../../lib/dateUtils';
-import { jsPDF } from 'jspdf';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const TIPO_LABELS: Record<AlmoxTipoMov, { label: string; color: string }> = {
   chegada:        { label: 'Chegada',           color: '#22c55e' },
@@ -40,241 +41,110 @@ export default function AlmoxRelatorio() {
   const handleExportPDF = async () => {
     setExporting(true);
     try {
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pw = pdf.internal.pageSize.getWidth();
-      let y = 20;
-
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
       const fmtDate = (d: string) => {
         const [yr, mo, dy] = d.split('-');
         return `${dy}/${mo}/${yr}`;
       };
 
-      // ── Header ──
-      pdf.setFontSize(22);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('BRIGADE NOIR', pw / 2, y, { align: 'center' });
-      y += 8;
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(120);
-      pdf.text('RELATÓRIO DE ALMOXARIFADO', pw / 2, y, { align: 'center' });
-      y += 6;
-      pdf.setFontSize(10);
-      pdf.setTextColor(80);
-      pdf.text(`${fmtDate(startDate)} — ${fmtDate(endDate)}`, pw / 2, y, { align: 'center' });
-      y += 4;
+      // Header
+      doc.setFillColor(26, 26, 26);
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.text('BRIGADE NOIR - RELATÓRIO ALMOX', 15, 25);
+      doc.setFontSize(10);
+      doc.text(`Período: ${fmtDate(startDate)} — ${fmtDate(endDate)} | Gerado em: ${new Date().toLocaleDateString()}`, 15, 33);
 
-      // ── Separator ──
-      pdf.setDrawColor(200);
-      pdf.line(15, y, pw - 15, y);
-      y += 8;
-
-      // ── Metrics ──
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(100);
-      pdf.text('MÉTRICAS DO PERÍODO', 15, y);
-      y += 6;
-
-      const metrics = [
-        { label: 'Total Recebido', value: `${stats.totalRecebidoKg.toFixed(1)} Kg`, sub: `${stats.numChegadas} chegadas` },
-        { label: 'Total Líquido', value: `${stats.totalLiquidoKg.toFixed(1)} Kg`, sub: `Perda: ${stats.totalPerdaKg.toFixed(1)}Kg` },
-        { label: 'Aproveitamento', value: `${stats.mediaAproveitamento.toFixed(1)}%`, sub: `${stats.numQuebras} testes` },
-        { label: 'Porções', value: `${stats.totalPorcoes}`, sub: `${stats.totalRequisitadas} requisitadas` },
-      ];
-      const colW = (pw - 30) / 4;
-
-      metrics.forEach((m, i) => {
-        const x = 15 + i * colW;
-        // Box
-        pdf.setFillColor(245, 245, 245);
-        pdf.roundedRect(x, y, colW - 3, 22, 2, 2, 'F');
-        // Label
-        pdf.setFontSize(7);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(130);
-        pdf.text(m.label.toUpperCase(), x + 4, y + 6);
-        // Value
-        pdf.setFontSize(14);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(40);
-        pdf.text(m.value, x + 4, y + 14);
-        // Subtext
-        pdf.setFontSize(6);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(150);
-        pdf.text(m.sub, x + 4, y + 19);
+      // Section 1: Métricas do Período
+      doc.setTextColor(26, 26, 26);
+      doc.setFontSize(16);
+      doc.text('1. MÉTRICAS DO PERÍODO', 15, 55);
+      
+      autoTable(doc, {
+        startY: 60,
+        head: [['Métrica', 'Valor', 'Detalhes']],
+        body: [
+          ['Total Recebido', `${stats.totalRecebidoKg.toFixed(1)} Kg`, `${stats.numChegadas} chegadas`],
+          ['Total Líquido', `${stats.totalLiquidoKg.toFixed(1)} Kg`, `Perda: ${stats.totalPerdaKg.toFixed(1)}Kg`],
+          ['Aproveitamento', `${stats.mediaAproveitamento.toFixed(1)}%`, `${stats.numQuebras} testes`],
+          ['Porções Geradas', String(stats.totalPorcoes), `${stats.totalRequisitadas} requisitadas`]
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [45, 106, 79], textColor: [255, 255, 255] }
       });
-      y += 30;
 
-      // ── Separator ──
-      pdf.setDrawColor(220);
-      pdf.line(15, y, pw - 15, y);
-      y += 8;
-
-      // ── Detalhamento por Lote ──
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(100);
-      pdf.text('DETALHAMENTO POR LOTE', 15, y);
-      y += 6;
-
-      for (const lote of lotes) {
+      // Section 2: Detalhamento por Lote
+      doc.setFontSize(16);
+      doc.text('2. MOVIMENTAÇÕES POR LOTE', 15, (doc as any).lastAutoTable.finalY + 15);
+      
+      const loteData: any[][] = [];
+      lotes.forEach(lote => {
         const loteMoves = lote.movimentacoes.filter(m => {
           const d = m.data_movimentacao.split('T')[0];
           return d >= startDate && d <= endDate;
         });
-        if (loteMoves.length === 0) continue;
+        
+        if (loteMoves.length > 0) {
+          loteData.push([{ content: lote.produto_nome.toUpperCase(), colSpan: 4, styles: { fillColor: [240, 240, 240], fontStyle: 'bold' } }]);
+          loteMoves.forEach(m => {
+            const cfg = TIPO_LABELS[m.tipo];
+            const [yr, mo, dy] = m.data_movimentacao.split('T')[0].split('-');
+            
+            let detail = '';
+            if (m.tipo === 'chegada') detail = `${m.peso_bruto_kg?.toFixed(1)}Kg bruto`;
+            if (m.tipo === 'subida_cozinha') detail = `${m.quantidade_enviada?.toFixed(1)}Kg enviado`;
+            if (m.tipo === 'teste_quebra') detail = `${m.peso_liquido_kg?.toFixed(1)}Kg líq · ${m.num_porcoes} pcs`;
+            if (m.tipo === 'retorno_almox') detail = `${m.porcoes_retornadas} pcs retorno`;
+            if (m.tipo === 'requisicao') detail = `${m.porcoes_solicitadas} pcs req`;
 
-        // Check page break
-        if (y > 260) {
-          pdf.addPage();
-          y = 20;
+            loteData.push([
+              `${dy}/${mo}`,
+              cfg.label.toUpperCase(),
+              detail,
+              m.tipo === 'teste_quebra' ? `${m.percentual_aproveitamento?.toFixed(1)}%` : '—'
+            ]);
+          });
         }
+      });
 
-        // Lote header
-        pdf.setFillColor(240, 240, 240);
-        pdf.roundedRect(15, y - 3, pw - 30, 8, 2, 2, 'F');
-        pdf.setFontSize(9);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(30);
-        pdf.text(lote.produto_nome.toUpperCase(), 18, y + 2);
-        pdf.setFontSize(7);
-        pdf.setTextColor(100);
-        pdf.text(`Saldo: ${lote.saldo_porcoes} porções`, pw - 18, y + 2, { align: 'right' });
-        y += 10;
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['Data', 'Operação', 'Detalhes', 'Aproveit.']],
+        body: loteData,
+        theme: 'grid',
+        headStyles: { fillColor: [166, 204, 227], textColor: [26, 26, 26] },
+        styles: { fontSize: 8 }
+      });
 
-        // Movements
-        for (const mov of loteMoves) {
-          if (y > 275) {
-            pdf.addPage();
-            y = 20;
-          }
-          const cfg = TIPO_LABELS[mov.tipo];
-          const [yr, mo, dy] = mov.data_movimentacao.split('T')[0].split('-');
-          const dateStr = `${dy}/${mo}`;
-
-          // Color dot
-          const rgb = hexToRgb(cfg.color);
-          pdf.setFillColor(rgb.r, rgb.g, rgb.b);
-          pdf.circle(20, y - 1, 1.5, 'F');
-
-          // Date
-          pdf.setFontSize(7);
-          pdf.setFont('helvetica', 'normal');
-          pdf.setTextColor(140);
-          pdf.text(dateStr, 25, y);
-
-          // Tipo
-          pdf.setFont('helvetica', 'bold');
-          pdf.setTextColor(rgb.r, rgb.g, rgb.b);
-          pdf.text(cfg.label.toUpperCase(), 40, y);
-
-          // Details
-          pdf.setFont('helvetica', 'normal');
-          pdf.setTextColor(80);
-          let detail = '';
-          if (mov.tipo === 'chegada') detail = `${mov.peso_bruto_kg?.toFixed(1)}Kg bruto`;
-          if (mov.tipo === 'subida_cozinha') detail = `${mov.quantidade_enviada?.toFixed(1)}Kg enviado`;
-          if (mov.tipo === 'teste_quebra') detail = `${mov.peso_liquido_kg?.toFixed(1)}Kg líq · ${mov.percentual_aproveitamento?.toFixed(1)}% · ${mov.num_porcoes} porções`;
-          if (mov.tipo === 'retorno_almox') detail = `${mov.porcoes_retornadas} porções retornadas`;
-          if (mov.tipo === 'requisicao') detail = `${mov.porcoes_solicitadas} porções requisitadas`;
-          pdf.text(detail, 80, y);
-
-          y += 5;
-        }
-        y += 4;
+      // Footer
+      const totalPages = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(
+          `Página ${i} de ${totalPages} | Brigade Noir System - Inteligência de Almoxarifado`,
+          pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' }
+        );
       }
 
-      // ── Table ──
-      if (filteredMovs.length > 0) {
-        if (y > 240) { pdf.addPage(); y = 20; }
-
-        pdf.setDrawColor(220);
-        pdf.line(15, y, pw - 15, y);
-        y += 8;
-
-        pdf.setFontSize(8);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(100);
-        pdf.text('TABELA RESUMIDA', 15, y);
-        y += 6;
-
-        // Table headers
-        pdf.setFillColor(235, 235, 235);
-        pdf.rect(15, y - 3, pw - 30, 7, 'F');
-        pdf.setFontSize(7);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(100);
-        pdf.text('DATA', 18, y + 1);
-        pdf.text('PRODUTO', 45, y + 1);
-        pdf.text('TIPO', 100, y + 1);
-        pdf.text('DETALHES', pw - 18, y + 1, { align: 'right' });
-        y += 7;
-
-        for (const mov of filteredMovs) {
-          if (y > 280) { pdf.addPage(); y = 20; }
-
-          const cfg = TIPO_LABELS[mov.tipo];
-          const [yr, mo, dy] = mov.data_movimentacao.split('T')[0].split('-');
-          const rgb = hexToRgb(cfg.color);
-
-          pdf.setFontSize(7);
-          pdf.setFont('helvetica', 'normal');
-          pdf.setTextColor(80);
-          pdf.text(`${dy}/${mo}/${yr}`, 18, y);
-
-          pdf.setFont('helvetica', 'bold');
-          pdf.setTextColor(40);
-          pdf.text(mov.produto_nome.toUpperCase(), 45, y);
-
-          pdf.setTextColor(rgb.r, rgb.g, rgb.b);
-          pdf.text(cfg.label, 100, y);
-
-          pdf.setTextColor(80);
-          pdf.setFont('helvetica', 'normal');
-          let detail = '';
-          if (mov.peso_bruto_kg) detail = `${mov.peso_bruto_kg.toFixed(1)}Kg`;
-          if (mov.num_porcoes) detail = `${mov.num_porcoes} pcs`;
-          if (mov.porcoes_solicitadas) detail = `${mov.porcoes_solicitadas} pcs`;
-          if (mov.porcoes_retornadas) detail = `${mov.porcoes_retornadas} pcs`;
-          pdf.text(detail, pw - 18, y, { align: 'right' });
-
-          // Row line
-          pdf.setDrawColor(240);
-          pdf.line(15, y + 2, pw - 15, y + 2);
-          y += 6;
-        }
-      }
-
-      // ── Footer ──
-      y += 8;
-      if (y > 280) { pdf.addPage(); y = 20; }
-      pdf.setDrawColor(200);
-      pdf.line(15, y, pw - 15, y);
-      y += 6;
-      pdf.setFontSize(6);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(160);
-      const now = new Date();
-      pdf.text(
-        `Gerado em ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · Brigade Noir System`,
-        pw / 2, y, { align: 'center' }
-      );
-
-      pdf.save(`Relatorio_Almoxarifado_${startDate}_${endDate}.pdf`);
-      showAlert('✅ Sucesso', 'O PDF do relatório foi baixado!');
+      doc.save(`Relatorio_Almoxarifado_${startDate}_${endDate}.pdf`);
+      showAlert('✅ Sucesso', 'O relatório profissional foi gerado!');
     } catch (err: any) {
       console.error('PDF export failed:', err);
-      showAlert('Erro no PDF', `Falha: ${err.message || 'Erro desconhecido'}`);
+      showAlert('Erro no PDF', `Falha: ${err.message}`);
     } finally {
       setExporting(false);
     }
   };
 
-  // ─── Print (native browser) for image-quality export ──────────────────────
+  // ─── Standardized Print (now uses the professional PDF template) ────────
   const handlePrint = () => {
-    window.print();
+    handleExportPDF();
   };
 
   return (

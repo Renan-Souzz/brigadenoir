@@ -72,7 +72,7 @@ const SECONDARY_MOBILE_ITEMS: Array<{ id: TabId; label: string; icon: string; mi
   { id: 'escala',       label: 'Escala',    icon: 'Calendar'         },
   { id: 'almoxarifado', label: 'Almoxa',    icon: 'Warehouse',       minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'] },
   { id: 'brigada',      label: 'Brigada',   icon: 'Users',           minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef', 'chef_de_partie'] },
-  { id: 'relatorio',    label: 'Relatório', icon: 'BarChart3'        },
+  { id: 'relatorio',    label: 'Inteligência & CMV', icon: 'BarChart3'        },
   { id: 'fichas',       label: 'Biblioteca', icon: 'BookOpen'        },
   { id: 'suporte',      label: 'Suporte',   icon: 'HelpCircle'       },
   { id: 'configuracoes', label: 'Ajustes',   icon: 'Settings'         },

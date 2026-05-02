@@ -31,7 +31,7 @@ const MENU_ITEMS: Array<{
   { id: 'mod_ficha_tecnica', label: 'Ficha Técnica', icon: Icons.FileSpreadsheet },
   { id: 'menu',         label: 'Menu Principal',    icon: Icons.UtensilsCrossed },
   { id: 'almoxarifado', label: 'Almoxarifado',      icon: Icons.Warehouse,       minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef', 'chef_de_partie'] },
-  { id: 'relatorio',    label: 'Relatório Eficiência', icon: Icons.BarChart3,    minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef', 'chef_de_partie'] },
+  { id: 'relatorio',    label: 'Inteligência & CMV', icon: Icons.BarChart3,    minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef', 'chef_de_partie'] },
   { id: 'brigada',      label: 'Gestão da Brigada', icon: Icons.Users,           minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef', 'chef_de_partie'] },
   { id: 'escala',       label: 'Escala Mensal',     icon: Icons.Calendar,        minRole: ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef', 'chef_de_partie'] },
 ];

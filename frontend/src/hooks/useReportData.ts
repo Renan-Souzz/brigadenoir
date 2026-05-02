@@ -47,11 +47,27 @@ export function useReportData(period: ReportPeriod) {
         .limit(20);
       if (movError) throw movError;
 
+      // 5. Fetch Fichas Técnicas for CMV analysis
+      const { data: fichas, error: fichasError } = await supabase
+        .from('ft_fichas')
+        .select(`
+          *,
+          ft_ficha_ingredientes (
+            pb_gramas,
+            insumo_id,
+            ft_insumos (
+              preco_unitario_base
+            )
+          )
+        `);
+      if (fichasError) throw fichasError;
+
       return {
         tasks: tasks as Task[],
         insumos: insumos as Insumo[],
         pax: pax as any[],
-        movements: movements as any[]
+        movements: movements as any[],
+        fichas: fichas as any[]
       };
     }
   });

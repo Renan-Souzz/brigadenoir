@@ -3,7 +3,7 @@ import {
   GitCommitHorizontal, PackageOpen, ArrowUpRight, Scissors, ArrowDownLeft,
   Send, Loader2, Hash, Clock, ChevronDown, ChevronUp, Package, Trash2, Pencil, Save
 } from 'lucide-react';
-import { useAlmoxMovimentacoes, AlmoxTipoMov, LoteSaldo } from '../../hooks/useAlmoxMovimentacoes';
+import { useAlmoxMovimentacoes, AlmoxTipoMov, LoteSaldo, AlmoxMovimentacao } from '../../hooks/useAlmoxMovimentacoes';
 import { useAuth } from '../../contexts/AuthContext';
 import { useModal } from '../../contexts/ModalContext';
 

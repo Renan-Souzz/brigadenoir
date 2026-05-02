@@ -24,22 +24,18 @@ import { useNavigation } from '../contexts/NavigationContext';
 import Skeleton, { CardSkeleton } from './shared/Skeleton';
 import confetti from 'canvas-confetti';
 import { jsPDF } from 'jspdf';
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Cell
+} from 'recharts';
 
 // Hooks
-import { useInsumos, Insumo, useInsumoLogs, useStationStreaks } from '../hooks/useInsumos';
+import { useInsumos, Insumo, useInsumoLogs, useStationStreaks, useInsumoHistory } from '../hooks/useInsumos';
 import { useProfiles } from '../hooks/useProfiles';
+import { useStations } from '../hooks/useStations';
 
 const CATEGORIAS = ['Proteínas', 'Laticínios', 'Vegetais', 'Molhos', 'Secos', 'Descartáveis', 'Bebidas', 'Outros'];
 
-const STATION_LABELS: Record<string, string> = {
-  saucier: 'Saucier',
-  garde_manger: 'Garde Manger',
-  entremetier: 'Entremetier',
-  rotisseur: 'Rôtisseur',
-  poissonier: 'Poissonnier',
-  patissier: 'Pâtissier',
-  almoxarifado: 'Almoxarifado'
-};
 
 const calculateStatusDisplay = (expiry: string | undefined, qty: number, minStock: number = 3) => {
   const now = new Date();
@@ -97,16 +93,16 @@ function InsumoLogModal({ insumoId, onClose }: { insumoId: string, onClose: () =
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       <div className="bg-surface-container-high border border-outline-variant/20 w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative z-20">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-black text-on-surface uppercase">Histórico de Movimentações</h3>
+          <h3 className="text-xl font-black text-on-surface uppercase tracking-tighter">Histórico</h3>
           <button onClick={onClose} className="p-2 text-outline-variant hover:text-red-400"><X size={20}/></button>
         </div>
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
           {isLoading ? <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div> :
            !logs || logs.length === 0 ? <p className="text-center text-outline-variant">Nenhum registro encontrado.</p> :
            logs.map(log => (
              <div key={log.id} className="flex justify-between items-center p-3 bg-surface-container rounded-xl border border-outline-variant/5">
                 <div>
-                   <p className="text-xs font-black text-on-surface uppercase">{log.action}</p>
+                   <p className="text-xs font-black text-on-surface uppercase tracking-widest">{log.action}</p>
                    <p className="text-[10px] text-outline-variant font-bold">{log.user?.full_name} • {new Date(log.created_at).toLocaleString('pt-BR')}</p>
                 </div>
                 <div className="text-right">
@@ -115,6 +111,84 @@ function InsumoLogModal({ insumoId, onClose }: { insumoId: string, onClose: () =
              </div>
            ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function InventoryEvolutionChart({ data, isLoading }: { data: any[], isLoading: boolean }) {
+  if (isLoading) return <div className="h-64 flex items-center justify-center bg-surface-container rounded-3xl border border-outline-variant/10"><Loader2 className="animate-spin text-primary" /></div>;
+  
+  return (
+    <div className="h-72 w-full bg-surface-container rounded-[2.5rem] p-6 border border-outline-variant/10 shadow-xl relative overflow-hidden group">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+           <h4 className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-1">Tendência de Movimentação</h4>
+           <p className="text-[10px] text-outline-variant font-bold uppercase tracking-widest">Entradas vs Saídas (15 dias)</p>
+        </div>
+        <div className="flex gap-4">
+           <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-primary" /><span className="text-[8px] font-black uppercase text-outline-variant">Entradas</span></div>
+           <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-secondary" /><span className="text-[8px] font-black uppercase text-outline-variant">Saídas</span></div>
+        </div>
+      </div>
+      
+      <div className="h-[180px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#a6cce3" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#a6cce3" stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#b89b4e" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#b89b4e" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis 
+              dataKey="date" 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{fill: '#8e9199', fontSize: 10, fontWeight: 900}} 
+              dy={10}
+            />
+            <YAxis 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{fill: '#8e9199', fontSize: 10, fontWeight: 900}} 
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: '#1a1c1e', 
+                border: '1px solid rgba(255,255,255,0.1)', 
+                borderRadius: '16px',
+                fontSize: '12px',
+                fontWeight: '900',
+                textTransform: 'uppercase'
+              }}
+              itemStyle={{ padding: '2px 0' }}
+            />
+            <Area 
+              type="monotone" 
+              dataKey="entradas" 
+              stroke="#a6cce3" 
+              strokeWidth={3}
+              fillOpacity={1} 
+              fill="url(#colorEntradas)" 
+              animationDuration={2000}
+            />
+            <Area 
+              type="monotone" 
+              dataKey="saidas" 
+              stroke="#b89b4e" 
+              strokeWidth={3}
+              fillOpacity={1} 
+              fill="url(#colorSaidas)" 
+              animationDuration={2500}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
@@ -234,6 +308,10 @@ export default function Insumos() {
     updateQuantity, createInsumo, deleteInsumo, refetch 
   } = useInsumos(isManagement ? undefined : profile?.station);
 
+  const { stations, formatStationName } = useStations();
+
+  const { data: history = [], isLoading: historyLoading } = useInsumoHistory(isManagement ? activeStation || 'todos' : profile?.station);
+
   useEffect(() => { setSearchTerm(searchFilter); }, [searchFilter]);
 
   const handleUpdateQty = async (id: string, newQty: number, wasMission: boolean = false) => {
@@ -292,12 +370,12 @@ export default function Insumos() {
     doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 28);
     
     let y = 40;
-    Object.entries(STATION_LABELS).forEach(([stId, stLabel]) => {
-      const stInsumos = insumos.filter(i => i.station === stId);
+    stations.forEach((st) => {
+      const stInsumos = insumos.filter(i => i.station === st.id);
       if (stInsumos.length === 0) return;
       
       doc.setFontSize(14);
-      doc.text(`Praça: ${stLabel}`, 14, y);
+      doc.text(`Praça: ${st.display_name}`, 14, y);
       y += 8;
       doc.setFontSize(10);
       
@@ -357,16 +435,16 @@ export default function Insumos() {
   // Management Radar Data
   const radarData = useMemo(() => {
     if (!isManagement) return [];
-    return Object.entries(STATION_LABELS).map(([stId, stLabel]) => {
-      const items = insumos.filter(i => i.station === stId);
+    return stations.map((st) => {
+      const items = insumos.filter(i => i.station === st.id);
       const alerts = items.filter(i => {
         const s = calculateStatusDisplay(i.expiry_date, i.quantity, i.min_stock);
         return s.statusColor === 'bg-error' || s.statusColor === 'bg-secondary';
       }).length;
-      const streak = streaks.find((s: any) => s.station === stId)?.current_streak || 0;
-      return { id: stId, label: stLabel, items: items.length, alerts, streak };
+      const streak = streaks.find((s: any) => s.station === st.id)?.current_streak || 0;
+      return { id: st.id, label: st.display_name, items: items.length, alerts, streak };
     });
-  }, [insumos, isManagement, streaks]);
+  }, [insumos, isManagement, streaks, stations]);
 
   return (
     <PageLayout>
@@ -420,13 +498,11 @@ export default function Insumos() {
         </div>
       )}
 
-      {/* Management Radar */}
-      {isManagement && (
-         <div className="mb-10">
+          <div className="mb-10">
             <h4 className="text-xs font-black text-outline-variant uppercase tracking-[0.2em] mb-4">Radar de Praças</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
                {radarData.map(st => (
-                 <div key={st.id} onClick={() => setActiveStation(activeStation === st.id ? null : st.id)} className={`p-4 rounded-2xl border cursor-pointer transition-all ${activeStation === st.id ? 'bg-primary/10 border-primary' : 'bg-surface-container border-outline-variant/10 hover:border-outline-variant/30'}`}>
+                 <div key={st.id} onClick={() => setActiveStation(activeStation === st.id ? null : st.id)} className={`p-4 rounded-2xl border cursor-pointer transition-all ${activeStation === st.id ? 'bg-primary/10 border-primary shadow-lg shadow-primary/5' : 'bg-surface-container border-outline-variant/10 hover:border-outline-variant/30'}`}>
                     <p className="text-[10px] font-black uppercase tracking-widest text-on-surface mb-2">{st.label}</p>
                     <div className="flex justify-between items-end">
                        <div>
@@ -440,8 +516,9 @@ export default function Insumos() {
                  </div>
                ))}
             </div>
+            
+            <InventoryEvolutionChart data={history} isLoading={historyLoading} />
          </div>
-      )}
 
       <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 w-full mb-8">
         <StatCard label="Vencidos" value={String(stats.expired).padStart(2, '0')} color="border-error" textColor="text-error" variant="border-left" className="!p-3 sm:min-w-[120px]" />
@@ -496,7 +573,7 @@ export default function Insumos() {
                     <label className="text-[10px] font-bold text-outline-variant uppercase tracking-widest block mb-1">Praça de Destino</label>
                     <select required value={formStation} onChange={(e) => setFormStation(e.target.value)} className="w-full bg-surface-container-highest border border-outline-variant/10 rounded-xl p-3 text-sm font-semibold text-on-surface outline-none uppercase">
                       <option value="">Selecionar Praça...</option>
-                      {Object.entries(STATION_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                      {stations.map((st) => <option key={st.id} value={st.id}>{st.display_name}</option>)}
                     </select>
                   </div>
                 )}

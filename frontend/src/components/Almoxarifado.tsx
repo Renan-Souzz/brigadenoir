@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import {
   PackageOpen, Scissors, GitCommitHorizontal, FileText,
-  BarChart3, ShieldAlert, RefreshCcw, Loader2, AlertTriangle
+  BarChart3, ShieldAlert, RefreshCcw, Loader2, AlertTriangle, Download
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '../contexts/NavigationContext';
+import { useModal } from '../contexts/ModalContext';
 import PageHeader from './shared/PageHeader';
 import PageLayout from './shared/PageLayout';
 import Button from './shared/Button';
@@ -37,7 +40,80 @@ export default function Almoxarifado() {
   const {
     isLoading, refetch,
     getLotesPendentes, getLotesNaCozinha, getLotesComEstoque, getStats,
+    movimentacoes
   } = useAlmoxMovimentacoes();
+
+  const { showAlert } = useModal();
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFillColor(26, 26, 26);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('BRIGADE NOIR - ALMOXARIFADO CENTRAL', 15, 25);
+    doc.setFontSize(10);
+    doc.text(`Relatório de Estoque e Movimentação | Data: ${new Date().toLocaleDateString()}`, 15, 33);
+
+    // Section 1: Sumário Executivo
+    doc.setTextColor(26, 26, 26);
+    doc.setFontSize(16);
+    doc.text('1. SUMÁRIO DE ESTOQUE', 15, 55);
+    
+    autoTable(doc, {
+      startY: 60,
+      head: [['Métrica', 'Valor']],
+      body: [
+        ['Total em Estoque (Porções)', String(totalPorcoesEstoque)],
+        ['Itens Aguardando Processamento', String(pendentes.length)],
+        ['Aproveitamento Médio (Rendimento)', `${stats.mediaAproveitamento.toFixed(1)}%`],
+        ['Total Recebido no Período (Kg)', `${stats.totalRecebidoKg.toFixed(2)} kg`],
+        ['Total de Requisições Atendidas', String(stats.totalRequisitadas)]
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [45, 106, 79], textColor: [255, 255, 255] }
+    });
+
+    // Section 2: Detalhamento de Itens em Estoque
+    doc.setFontSize(16);
+    doc.text('2. ITENS EM ESTOQUE (SALDO ATUAL)', 15, (doc as any).lastAutoTable.finalY + 15);
+    
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 20,
+      head: [['Produto', 'Categoria', 'Saldo (un)', 'Última Mov.']],
+      body: comEstoque.map(l => [
+        l.produto_nome,
+        l.categoria.toUpperCase(),
+        String(l.saldo_porcoes),
+        new Date(l.ultima_movimentacao).toLocaleDateString()
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [166, 204, 227], textColor: [26, 26, 26] }
+    });
+
+    // Section 3: Alertas de Estoque Crítico
+    const criticos = comEstoque.filter(l => l.saldo_porcoes <= 5);
+    if (criticos.length > 0) {
+      doc.setTextColor(239, 68, 68);
+      doc.setFontSize(16);
+      doc.text('3. ALERTAS DE ESTOQUE CRÍTICO', 15, (doc as any).lastAutoTable.finalY + 15);
+      
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['Produto', 'Saldo Atual', 'Status']],
+        body: criticos.map(l => [l.produto_nome, String(l.saldo_porcoes), 'REPOSIÇÃO URGENTE']),
+        theme: 'striped',
+        headStyles: { fillColor: [239, 68, 68], textColor: [255, 255, 255] }
+      });
+    }
+
+    doc.save(`Relatorio_Almox_BrigadeNoir_${new Date().toISOString().split('T')[0]}.pdf`);
+    showAlert('PDF Gerado', 'O relatório do almoxarifado foi baixado com sucesso.');
+  };
 
   const [activeTab, setActiveTab] = useState<AlmoxTab>('chegadas');
 
@@ -127,9 +203,14 @@ export default function Almoxarifado() {
             )}
           </div>
 
-          <Button variant="outline" onClick={() => refetch()} className="w-full gap-2">
-            {isLoading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />} Sincronizar
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExportPDF} className="flex-1 gap-2 text-primary border-primary/20 hover:bg-primary/5">
+              <Download size={14} /> Exportar PDF
+            </Button>
+            <Button variant="outline" onClick={() => refetch()} className="flex-1 gap-2">
+              {isLoading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />} Sincronizar
+            </Button>
+          </div>
         </div>
 
         {/* ─── Main Content ──────────────────────────────────────────────── */}

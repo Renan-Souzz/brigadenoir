@@ -67,6 +67,17 @@ function ChecklistGroup({ title, completed, total, children }: any) {
   );
 }
 
+interface ChecklistItemProps {
+  key?: any;
+  task: Task;
+  creatorName?: string;
+  completerName?: string;
+  onToggle: () => void | Promise<void>;
+  onDelete: (e: any) => void | Promise<void>;
+  onAddNote: () => void;
+  canDelete: boolean;
+}
+
 function ChecklistItem({ 
   task, 
   creatorName, 
@@ -75,15 +86,7 @@ function ChecklistItem({
   onDelete, 
   onAddNote,
   canDelete 
-}: { 
-  task: Task; 
-  creatorName?: string; 
-  completerName?: string;
-  onToggle: () => void; 
-  onDelete: (e: any) => void; 
-  onAddNote: () => void;
-  canDelete: boolean;
-}) {
+}: ChecklistItemProps) {
   const isHighPriority = task.priority === 'high';
   const isLate = task.due_time && !task.is_completed && new Date(`1970-01-01T${task.due_time}`) < new Date(`1970-01-01T${new Date().toTimeString().split(' ')[0]}`);
   const catInfo = TASK_CATEGORIES[task.category] || TASK_CATEGORIES.geral;
@@ -255,7 +258,7 @@ export default function Checklist() {
   const [performanceModalStation, setPerformanceModalStation] = useState<string | null>(null);
   const [isStationsModalOpen, setIsStationsModalOpen] = useState(false);
   
-  const { stations, activeStations, updateStation, toggleStation } = useStations();
+  const { stations, activeStations, updateStation, toggleStation, formatStationName, isLoading: stationsLoading } = useStations();
   const stationsList = activeStations.map(s => s.id);
 
   // Forms
@@ -447,12 +450,6 @@ export default function Checklist() {
         showAlert('Erro', 'Falha ao gerar tarefas.');
       }
     }
-  };
-
-  const formatStationName = (s: string) => {
-    if (s === 'todos') return 'TODAS AS PRAÇAS';
-    const station = stations.find(st => st.id === s);
-    return station?.display_name || s.toUpperCase().replace('_', ' ');
   };
 
   return (

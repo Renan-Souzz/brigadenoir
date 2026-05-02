@@ -19,6 +19,7 @@ import { useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth, AppRole, KitchenStation, Profile } from '../contexts/AuthContext';
 import { useProfiles, useInvites } from '../hooks/useProfiles';
+import { useStations } from '../hooks/useStations';
 import PageHeader from './shared/PageHeader';
 import PageLayout from './shared/PageLayout';
 import { useModal } from '../contexts/ModalContext';
@@ -38,14 +39,6 @@ const ROLE_LABELS: Record<AppRole, string> = {
   fichas: 'Acesso Fichas'
 };
 
-const STATION_LABELS: Record<string, string> = {
-  saucier: 'Saucier',
-  garde_manger: 'Garde Manger',
-  entremetier: 'Entremetier',
-  rotisseur: 'Rôtisseur',
-  poissonier: 'Poissonnier',
-  patissier: 'Pâtissier'
-};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -54,6 +47,7 @@ export default function Brigada() {
   const { showAlert, showConfirm, showPrompt } = useModal();
   const { data: users = [], isLoading: usersLoading, updateProfile, deleteProfile, refetch: refetchUsers } = useProfiles();
   const { data: invites = [], isLoading: invitesLoading, generateInvite, deleteInvite } = useInvites();
+  const { stations, formatStationName } = useStations();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -378,12 +372,12 @@ export default function Brigada() {
                           className="bg-surface-container-highest border-none rounded-lg p-2 text-xs font-bold text-on-surface focus:ring-1 focus:ring-primary"
                         >
                           <option value="" disabled>Selecione uma Praça</option>
-                          {Object.entries(STATION_LABELS).map(([val, label]) => {
-                            const isDisabled = isStationLead && val !== profile?.station;
-                            if (isDisabled && val !== u.station) return null;
+                          {stations.map((st) => {
+                            const isDisabled = isStationLead && st.id !== profile?.station;
+                            if (isDisabled && st.id !== u.station) return null;
                             return (
-                              <option key={val} value={val} disabled={isDisabled}>
-                                {label} {isDisabled ? '(Restrito)' : ''}
+                              <option key={st.id} value={st.id} disabled={isDisabled}>
+                                {st.display_name} {isDisabled ? '(Restrito)' : ''}
                               </option>
                             );
                           })}
@@ -391,7 +385,7 @@ export default function Brigada() {
                       ) : (
                         <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-on-surface-variant flex items-center gap-2">
                           <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_5px_#a6cce3]"></div>
-                          {STATION_LABELS[u.station || 'saucier'] || 'Praça Indefinida'}
+                          {formatStationName(u.station || 'saucier')}
                         </span>
                       )}
                     </td>
@@ -456,10 +450,10 @@ export default function Brigada() {
                       )}
                       <select value={editStation} onChange={(e) => setEditStation(e.target.value as KitchenStation)} className="bg-surface-container-highest rounded-lg p-2.5 text-[11px] font-bold text-on-surface border-none">
                         <option value="" disabled>Praça</option>
-                        {Object.entries(STATION_LABELS).map(([val, label]) => {
-                          const isDisabled = isStationLead && val !== profile?.station;
-                          if (isDisabled && val !== u.station) return null;
-                          return (<option key={val} value={val} disabled={isDisabled}>{label}</option>);
+                        {stations.map((st) => {
+                          const isDisabled = isStationLead && st.id !== profile?.station;
+                          if (isDisabled && st.id !== u.station) return null;
+                          return (<option key={st.id} value={st.id} disabled={isDisabled}>{st.display_name}</option>);
                         })}
                       </select>
                       <select value={editShift} onChange={(e) => setEditShift(e.target.value as 'manha' | 'tarde')} className="bg-surface-container-highest rounded-lg p-2.5 text-[11px] font-bold text-on-surface border-none">
@@ -484,7 +478,7 @@ export default function Brigada() {
                           ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'].includes(u.role) ? 'bg-primary/20 text-primary' :
                           u.role === 'chef_de_partie' ? 'bg-secondary/20 text-secondary' : 'bg-outline-variant/20 text-outline'
                         }`}>{ROLE_LABELS[u.role as AppRole] || u.role}</span>
-                        <span className="text-[9px] text-on-surface-variant font-bold">{STATION_LABELS[u.station || 'saucier'] || '—'}</span>
+                        <span className="text-[9px] text-on-surface-variant font-bold">{formatStationName(u.station || 'saucier')}</span>
                         <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${u.shift === 'tarde' ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'}`}>{u.shift === 'tarde' ? 'Tarde' : 'Manhã'}</span>
                       </div>
                     </div>

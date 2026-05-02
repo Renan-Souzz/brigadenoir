@@ -7,6 +7,7 @@ import { useNavigation, TabId } from '../../contexts/NavigationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useModal } from '../../contexts/ModalContext';
 import { supabase } from '../../lib/supabase';
+import { useStations } from '../../hooks/useStations';
 import Button from './Button';
 
 interface PageHeaderProps {
@@ -58,6 +59,7 @@ export default function PageHeader({
   const { setActiveTab, searchFilter, setSearchFilter } = useNavigation();
   const { profile, updateProfile, signOut, isManagement } = useAuth();
   const { showAlert } = useModal();
+  const { stations, formatStationName } = useStations();
   
   // -- Global Search Logic --
   const [localSearchTerm, setLocalSearchTerm] = useState(searchFilter);
@@ -207,7 +209,7 @@ export default function PageHeader({
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-surface-container-highest rounded-full">
               <div className={`w-2 h-2 rounded-full ${stationColor} shadow-[0_0_8px_rgba(0,0,0,0.4)]`}></div>
               <span className={`text-[10px] font-bold uppercase tracking-widest ${stationColor.replace('bg-', 'text-')}`}>
-                Station: {stationLabel}
+                Station: {formatStationName(profile?.station || '')}
               </span>
             </div>
           </>
@@ -523,7 +525,7 @@ export default function PageHeader({
                           onClick={() => handleGlobalClick('insumos')}
                           className="bg-surface rounded-2xl p-4 border border-outline-variant/10 hover:border-primary/50 hover:bg-surface-container-high transition-all cursor-pointer group shadow-sm hover:shadow-xl"
                         >
-                          <p className="text-[9px] uppercase font-black tracking-wider text-outline-variant group-hover:text-primary transition-colors">Praça: {ins.station}</p>
+                          <p className="text-[9px] uppercase font-black tracking-wider text-outline-variant group-hover:text-primary transition-colors">Praça: {formatStationName(ins.station)}</p>
                           <p className="font-bold text-sm text-on-surface mt-1 truncate">{ins.name}</p>
                           <p className="text-[10px] text-on-surface-variant mt-2 flex justify-between items-center bg-surface-container px-2 py-1.5 rounded-lg border border-outline-variant/5">
                             Acesso Rápido <ArrowRight size={14} className="text-primary opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0" />

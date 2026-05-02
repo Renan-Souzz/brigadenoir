@@ -4,8 +4,10 @@ import { calculateStationEfficiency } from '../lib/stats';
 import PageLayout from './shared/PageLayout';
 import StatCard from './shared/StatCard';
 import { 
-  TrendingUp, AlertCircle, PackageCheck, Loader2, Calendar, Users, Plus, Minus, Save, RefreshCcw, ChefHat, Clock, AlertTriangle, X
+  TrendingUp, AlertCircle, PackageCheck, Loader2, Calendar, Users, Plus, Minus, Save, RefreshCcw, ChefHat, Clock, AlertTriangle, X, FileText, Download
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useModal } from '../contexts/ModalContext';
 import Button from './shared/Button';
 
@@ -103,7 +105,7 @@ export default function Relatorio() {
 
   const analytics = useMemo(() => {
     if (!reportData) return null;
-    const { tasks, insumos, pax, movements } = reportData;
+    const { tasks, insumos, pax, movements, fichas } = reportData;
 
     // 1. Efficiency Chart
     const historyData = [];
@@ -187,7 +189,54 @@ export default function Relatorio() {
       date: m.data_movimentacao
     }));
 
-    return { historyData, totalPaxPeriod, totalPaxMonth, growthData, stationStats, overallEfficiency, totalProteinas, totalMolhos, totalPorcoes, entregasRecentes, rawTasks: tasks, rawInsumos: insumos };
+    // 6. CMV Analytics (New Feature)
+    const fichasStats = (fichas || []).map((f: any) => {
+      const cost = f.ft_ficha_ingredientes?.reduce((acc: number, ing: any) => {
+        return acc + (ing.pb_gramas * (ing.ft_insumos?.preco_unitario_base || 0));
+      }, 0) || 0;
+      
+      const precoVenda = f.preco_venda || 0;
+      const margem = precoVenda - cost;
+      const cmvReal = precoVenda > 0 ? (cost / precoVenda) * 100 : 0;
+      
+      return {
+        id: f.id,
+        nome: f.nome,
+        cost,
+        precoVenda,
+        cmvReal,
+        margem
+      };
+    });
+
+    const avgCMV = fichasStats.length > 0 
+      ? fichasStats.reduce((acc, f) => acc + f.cmvReal, 0) / fichasStats.length 
+      : 0;
+    
+    const avgCostPerPax = fichasStats.length > 0
+      ? fichasStats.reduce((acc, f) => acc + f.cost, 0) / fichasStats.length
+      : 0;
+
+    const totalTheoreticalCost = totalPaxPeriod * avgCostPerPax;
+
+    return { 
+      historyData, 
+      totalPaxPeriod, 
+      totalPaxMonth, 
+      growthData, 
+      stationStats, 
+      overallEfficiency, 
+      totalProteinas, 
+      totalMolhos, 
+      totalPorcoes, 
+      entregasRecentes, 
+      rawTasks: tasks, 
+      rawInsumos: insumos,
+      fichasStats,
+      avgCMV,
+      totalTheoreticalCost,
+      avgCostPerPax
+    };
   }, [reportData, paxData, activeStations, period]);
 
   const handleSavePax = async () => {
@@ -209,6 +258,80 @@ export default function Relatorio() {
   const handleRefetch = () => {
     refetchPax();
     refetchReport();
+  };
+
+  const handleExportPDF = () => {
+    if (!analytics) return;
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFillColor(26, 26, 26);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('BRIGADE NOIR - RELATÓRIO OPERACIONAL', 15, 25);
+    doc.setFontSize(10);
+    doc.text(`Período: ${period.toUpperCase()} | Data de Emissão: ${new Date().toLocaleDateString()}`, 15, 33);
+
+    // Section 1: Desempenho Geral
+    doc.setTextColor(26, 26, 26);
+    doc.setFontSize(16);
+    doc.text('1. RESUMO DE DESEMPENHO', 15, 55);
+    
+    autoTable(doc, {
+      startY: 60,
+      head: [['Métrica', 'Valor']],
+      body: [
+        ['Eficiência Média da Cozinha', `${analytics.overallEfficiency}%`],
+        ['Total de PAX no Período', String(analytics.totalPaxPeriod)],
+        ['Eficiência Média de Tarefas', `${analytics.overallEfficiency}%`],
+        ['Estoque Crítico (Praças)', String(analytics.stationStats.reduce((acc, s) => acc + (s.hasLowStock ? 1 : 0), 0))]
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [166, 204, 227], textColor: [26, 26, 26] }
+    });
+
+    // Section 2: Análise de CMV (Métrica de Ouro)
+    doc.setFontSize(16);
+    doc.text('2. ANÁLISE DE CMV DINÂMICO (PAX VS CUSTO)', 15, (doc as any).lastAutoTable.finalY + 15);
+    
+    const cmvBody = [
+      ['Total PAX (Giro)', String(analytics.totalPaxPeriod)],
+      ['Custo Médio por PAX (Teórico)', `R$ ${analytics.avgCostPerPax.toFixed(2)}`],
+      ['Total Custo de Mercadoria (Teórico)', `R$ ${analytics.totalTheoreticalCost.toFixed(2)}`],
+      ['Margem Média Bruta (Teórica)', `R$ ${(analytics.fichasStats.reduce((acc, f) => acc + f.margem, 0) / (analytics.fichasStats.length || 1)).toFixed(2)}`],
+      ['CMV Médio Projetado', `${analytics.avgCMV.toFixed(1)}%`]
+    ];
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 20,
+      head: [['Indicador de CMV', 'Resultado']],
+      body: cmvBody,
+      theme: 'grid',
+      headStyles: { fillColor: [212, 175, 55], textColor: [255, 255, 255] }
+    });
+
+    // Section 3: Detalhamento por Praça
+    doc.setFontSize(16);
+    doc.text('3. EFICIÊNCIA POR PRAÇA', 15, (doc as any).lastAutoTable.finalY + 15);
+    
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 20,
+      head: [['Praça', 'Eficiência', 'Pendências', 'Status Estoque']],
+      body: analytics.stationStats.map(s => [
+        s.station, 
+        `${s.efficiency}%`, 
+        String(s.pending), 
+        s.hasLowStock ? 'CRÍTICO' : 'NORMAL'
+      ]),
+      theme: 'striped'
+    });
+
+    doc.save(`Relatorio_BrigadeNoir_${period}_${new Date().toISOString().split('T')[0]}.pdf`);
+    showAlert('PDF Gerado', 'O relatório executivo foi baixado com sucesso.');
   };
 
   if (!isManagement) {
@@ -265,6 +388,9 @@ export default function Relatorio() {
              <button onClick={() => setPeriod('30d')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${period === '30d' ? 'bg-primary text-on-primary shadow-md' : 'text-outline-variant hover:text-on-surface'}`}>30 Dias</button>
              <button onClick={() => setPeriod('this_month')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${period === 'this_month' ? 'bg-primary text-on-primary shadow-md' : 'text-outline-variant hover:text-on-surface'}`}>Mês</button>
           </div>
+          <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-2 text-primary border-primary/20 hover:bg-primary/5">
+             <FileText size={14} /> Exportar PDF
+          </Button>
           <Button variant="outline" size="sm" onClick={handleRefetch} className="gap-2">
              {isLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />} Atualizar
           </Button>
@@ -430,6 +556,57 @@ export default function Relatorio() {
                     )
                   })}
                 </div>
+             </div>
+          </div>
+
+          {/* New: CMV Projection Section */}
+          <div className="bg-surface-container rounded-3xl p-6 border border-outline-variant/10 shadow-xl overflow-hidden relative">
+             <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                <TrendingUp size={120} className="text-tertiary" />
+             </div>
+             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-on-surface mb-6 flex items-center gap-2">
+                <TrendingUp size={16} className="text-tertiary" /> Projeção Financeira (CMV)
+             </h3>
+             
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant/5">
+                   <p className="text-[9px] font-black uppercase tracking-widest text-outline-variant mb-1">CMV Médio Projetado</p>
+                   <p className={`text-3xl font-black tracking-tighter ${analytics?.avgCMV && analytics.avgCMV < 30 ? 'text-green-400' : 'text-error'}`}>
+                      {analytics?.avgCMV.toFixed(1)}%
+                   </p>
+                   <div className="mt-2 h-1 w-full bg-surface-container rounded-full overflow-hidden">
+                      <div className={`h-full ${analytics?.avgCMV && analytics.avgCMV < 30 ? 'bg-green-500' : 'bg-error'}`} style={{ width: `${Math.min(100, analytics?.avgCMV || 0)}%` }} />
+                   </div>
+                </div>
+
+                <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant/5">
+                   <p className="text-[9px] font-black uppercase tracking-widest text-outline-variant mb-1">Custo Total Teórico</p>
+                   <p className="text-3xl font-black tracking-tighter text-on-surface">
+                      <span className="text-xs text-outline-variant mr-1">R$</span>
+                      {analytics?.totalTheoreticalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                   </p>
+                   <p className="text-[8px] font-bold text-outline-variant mt-2 uppercase">Baseado em {analytics?.totalPaxPeriod} PAX</p>
+                </div>
+
+                <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant/5">
+                   <p className="text-[9px] font-black uppercase tracking-widest text-outline-variant mb-1">Custo Médio / PAX</p>
+                   <p className="text-3xl font-black tracking-tighter text-secondary">
+                      <span className="text-xs text-outline-variant mr-1">R$</span>
+                      {analytics?.avgCostPerPax.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                   </p>
+                   <p className="text-[8px] font-bold text-outline-variant mt-2 uppercase tracking-tighter">Média das Fichas Ativas</p>
+                </div>
+             </div>
+
+             <div className="mt-6 p-4 bg-tertiary/5 rounded-2xl border border-tertiary/10">
+                <p className="text-[10px] text-tertiary-dim font-bold uppercase tracking-widest flex items-center gap-2">
+                   <AlertCircle size={12} /> Insight do Chef
+                </p>
+                <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
+                   {analytics?.avgCMV && analytics.avgCMV > 35 
+                    ? "Alerta: O CMV médio está acima do ideal (30-35%). Revise os preços de venda ou reduza o custo dos insumos nas fichas técnicas."
+                    : "Excelente! O CMV projetado está dentro da meta operacional. Mantenha o controle de desperdício para garantir a margem."}
+                </p>
              </div>
           </div>
         </div>

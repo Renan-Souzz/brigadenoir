@@ -56,6 +56,11 @@ export function useStations() {
     activeStations: stations.filter(s => s.is_active),
     isLoading,
     updateStation: updateStation.mutateAsync,
-    toggleStation: toggleStation.mutateAsync
+    toggleStation: toggleStation.mutateAsync,
+    formatStationName: (id: string) => {
+      if (id === 'todos') return 'TODAS AS PRAÇAS';
+      const s = stations.find(st => st.id === id);
+      return s?.display_name || id.toUpperCase().replace('_', ' ');
+    }
   };
 }
