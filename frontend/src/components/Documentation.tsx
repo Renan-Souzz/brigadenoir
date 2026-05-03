@@ -21,7 +21,7 @@ import Button from './shared/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { toJpeg } from 'html-to-image';
 
 // ─── Document Components ──────────────────────────────────────────────────────
 
@@ -83,44 +83,40 @@ export default function Documentation() {
     try {
       const el = ref.current;
       
-      // Captura com parâmetros otimizados para estabilidade
-      const canvas = await html2canvas(el, {
-        scale: 1.5, // Reduzido ligeiramente para evitar crash em dispositivos com menos memória
-        useCORS: true,
-        logging: true, // Habilitado para debug se o usuário abrir o console
+      // html-to-image é significativamente mais estável para React
+      const dataUrl = await toJpeg(el, {
+        quality: 0.95,
+        pixelRatio: 1.5,
         backgroundColor: el.classList.contains('bg-white') ? '#ffffff' : '#0c0c0c',
-        windowWidth: 1024, // Garante largura consistente na captura
-        allowTaint: true
+        cacheBust: true,
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.85); // JPEG é mais leve que PNG
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       
-      const imgProps = pdf.getImageProperties(imgData);
+      const imgProps = pdf.getImageProperties(dataUrl);
       const imgHeightMM = (imgProps.height * pageWidth) / imgProps.width;
       
       let heightLeft = imgHeightMM;
       let position = 0;
 
       // Página 1
-      pdf.addImage(imgData, 'JPEG', 0, position, pageWidth, imgHeightMM);
+      pdf.addImage(dataUrl, 'JPEG', 0, position, pageWidth, imgHeightMM);
       heightLeft -= pageHeight;
 
-      // Páginas Adicionais
+      // Páginas Adicionais (Scroll infinito para PDF)
       while (heightLeft > 0) {
         position = heightLeft - imgHeightMM;
         pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, pageWidth, imgHeightMM);
+        pdf.addImage(dataUrl, 'JPEG', 0, position, pageWidth, imgHeightMM);
         heightLeft -= pageHeight;
       }
 
       pdf.save(`${filename}.pdf`);
-      console.log(`PDF ${filename} gerado com sucesso.`);
     } catch (error) {
       console.error('PDF Generation failed:', error);
-      alert('Falha ao gerar PDF. Certifique-se de que seu navegador permite downloads e que não há bloqueadores de script ativos.');
+      alert('O processamento da imagem falhou. Tente atualizar a página ou reduzir o zoom do navegador.');
     } finally {
       setGenerating(null);
     }
