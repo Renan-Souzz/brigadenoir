@@ -50,12 +50,14 @@ const DocumentCard = ({
       {description}
     </p>
     <Button 
-      variant="primary" 
+      variant="secondary" 
       onClick={onDownload} 
-      className="w-full gap-2 py-6 rounded-2xl"
+      className="w-full gap-3 py-7 rounded-2xl group/btn overflow-hidden relative"
       loading={loading}
     >
-      <Download size={18} /> GERAR PDF PROFISSIONAL
+      <div className="absolute inset-0 bg-gradient-to-r from-secondary/0 via-white/5 to-secondary/0 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000" />
+      <Download size={20} className="group-hover/btn:scale-110 transition-transform" /> 
+      <span className="font-black tracking-[0.2em] text-[11px]">GERAR PDF PROFISSIONAL</span>
     </Button>
   </motion.div>
 );
