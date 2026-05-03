@@ -78,34 +78,39 @@ export default function Documentation() {
     setGenerating(filename);
     
     try {
-      // Temporarily show the element for capturing
       const el = ref.current;
-      el.style.display = 'block';
-      el.style.position = 'absolute';
-      el.style.left = '-9999px';
-      el.style.top = '0';
-      el.style.width = '800px'; // Standard width for capture
-
+      
       const canvas = await html2canvas(el, {
         scale: 2,
         useCORS: true,
         logging: false,
-        backgroundColor: '#0c0c0c' // Match theme
+        backgroundColor: el.classList.contains('bg-white') ? '#ffffff' : '#0c0c0c'
       });
 
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
       const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const imgHeightMM = (imgProps.height * pageWidth) / imgProps.width;
       
-      // If content is longer than one page, we could loop, 
-      // but for these manuals we'll stick to a long scroll or split.
-      // For simplicity and quality, we'll fit it to the width and let it flow.
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      let heightLeft = imgHeightMM;
+      let position = 0;
+
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeightMM);
+      heightLeft -= pageHeight;
+
+      // Add extra pages if needed
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeightMM;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeightMM);
+        heightLeft -= pageHeight;
+      }
+
       pdf.save(`${filename}.pdf`);
-      
-      el.style.display = 'none';
     } catch (error) {
       console.error('PDF Generation failed:', error);
     } finally {
@@ -217,7 +222,7 @@ export default function Documentation() {
 
       {/* ─── HIDDEN PDF TEMPLATES (Used for Capture) ──────────────────────────── */}
       
-      <div style={{ display: 'none' }}>
+      <div className="opacity-0 pointer-events-none fixed -left-[9999px] top-0 z-[-1]">
         {/* PRESENTATION TEMPLATE */}
         <div ref={presentationRef} className="p-20 bg-[#0c0c0c] text-white font-sans w-[800px]">
            <div className="mb-20">
