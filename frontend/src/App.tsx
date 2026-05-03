@@ -7,14 +7,14 @@ import React, { useState } from 'react';
 import {
   LayoutDashboard, UtensilsCrossed, Package, FileSpreadsheet,
   ClipboardCheck, Calendar, Warehouse, Users, BarChart3,
-  BookOpen, HelpCircle, Settings, X, Menu, type LucideIcon
+  BookOpen, HelpCircle, Settings, X, Menu, FileText, type LucideIcon
 } from 'lucide-react';
 
 // Icon lookup map — replaces import * to avoid bundling all 1500+ icons
 const ICON_MAP: Record<string, LucideIcon> = {
   LayoutDashboard, UtensilsCrossed, Package, FileSpreadsheet,
   ClipboardCheck, Calendar, Warehouse, Users, BarChart3,
-  BookOpen, HelpCircle, Settings, X, Menu
+  BookOpen, HelpCircle, Settings, X, Menu, FileText
 };
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ModalProvider } from './contexts/ModalContext';
@@ -40,6 +40,7 @@ import ResetPassword from './components/ResetPassword';
 import Escala from './components/Escala';
 import Modal from './components/shared/Modal';
 import ProfileOnboarding from './components/ProfileOnboarding';
+import Documentation from './components/Documentation';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -56,6 +57,7 @@ const VIEWS: Record<TabId, React.ComponentType> = {
   configuracoes: Configuracoes,
   suporte: SuporteTecnico,
   mod_ficha_tecnica: ModuloFichaTecnica,
+  docs: Documentation,
 };
 
 /** Navigation items shown in the mobile bottom bar. Core items only. */
@@ -75,6 +77,7 @@ const SECONDARY_MOBILE_ITEMS: Array<{ id: TabId; label: string; icon: string; mi
   { id: 'relatorio',    label: 'Inteligência & CMV', icon: 'BarChart3'        },
   { id: 'fichas',       label: 'Biblioteca', icon: 'BookOpen'        },
   { id: 'suporte',      label: 'Suporte',   icon: 'HelpCircle'       },
+  { id: 'docs',         label: 'Docs & Manuais', icon: 'FileText'     },
   { id: 'configuracoes', label: 'Ajustes',   icon: 'Settings'         },
 ];
 

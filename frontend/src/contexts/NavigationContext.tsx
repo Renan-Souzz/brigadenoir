@@ -12,7 +12,8 @@ export type TabId =
   | 'fichas'
   | 'suporte'
   | 'mod_ficha_tecnica'
-  | 'escala';
+  | 'escala'
+  | 'docs';
 
 interface NavigationContextType {
   activeTab: TabId;
