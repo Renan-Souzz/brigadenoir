@@ -50,14 +50,14 @@ const DocumentCard = ({
       {description}
     </p>
     <Button 
-      variant="secondary" 
+      variant="primary" 
+      size="xl"
       onClick={onDownload} 
-      className="w-full gap-3 py-7 rounded-2xl group/btn overflow-hidden relative"
+      className="w-full mt-auto"
       loading={loading}
+      icon={<Download size={18} />}
     >
-      <div className="absolute inset-0 bg-gradient-to-r from-secondary/0 via-white/5 to-secondary/0 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000" />
-      <Download size={20} className="group-hover/btn:scale-110 transition-transform" /> 
-      <span className="font-black tracking-[0.2em] text-[11px]">GERAR PDF PROFISSIONAL</span>
+      GERAR PDF PROFISSIONAL
     </Button>
   </motion.div>
 );
@@ -222,7 +222,7 @@ export default function Documentation() {
 
       {/* ─── HIDDEN PDF TEMPLATES (Used for Capture) ──────────────────────────── */}
       
-      <div className="opacity-0 pointer-events-none fixed -left-[9999px] top-0 z-[-1]">
+      <div className="fixed -left-[9999px] top-0 z-[-1] pointer-events-none">
         {/* PRESENTATION TEMPLATE */}
         <div ref={presentationRef} className="p-20 bg-[#0c0c0c] text-white font-sans w-[800px]">
            <div className="mb-20">
