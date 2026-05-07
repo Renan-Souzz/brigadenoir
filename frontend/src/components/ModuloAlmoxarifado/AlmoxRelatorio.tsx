@@ -4,6 +4,7 @@ import {
   PackageOpen, TrendingUp, Weight, Hash, Calendar, Printer
 } from 'lucide-react';
 import { useAlmoxMovimentacoes, AlmoxTipoMov } from '../../hooks/useAlmoxMovimentacoes';
+import { useWaste } from '../../hooks/useWaste';
 import { useModal } from '../../contexts/ModalContext';
 import { formatLocalDate } from '../../lib/dateUtils';
 import jsPDF from 'jspdf';
@@ -30,6 +31,13 @@ export default function AlmoxRelatorio() {
 
   const stats = getStats(startDate, endDate);
   const lotes = getLotes();
+  
+  // Calculate days between dates for waste query
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const daysDiff = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) || 7;
+  
+  const { wasteLogs, isLoading: wasteLoading } = useWaste(daysDiff);
 
   // Filter movimentacoes by date range
   const filteredMovs = movimentacoes.filter(m => {
@@ -119,6 +127,44 @@ export default function AlmoxRelatorio() {
         headStyles: { fillColor: [166, 204, 227], textColor: [26, 26, 26] },
         styles: { fontSize: 8 }
       });
+
+
+      // Section 3: Desperdício (Waste)
+      const wasteData = wasteLogs
+        .filter(w => {
+          const d = w.created_at.split('T')[0];
+          return d >= startDate && d <= endDate;
+        })
+        .map(w => [
+          new Date(w.created_at).toLocaleDateString('pt-BR'),
+          w.product_name.toUpperCase(),
+          w.station.toUpperCase(),
+          `${w.quantity} ${w.unit}`,
+          `R$ ${w.cost_impact.toFixed(2)}`
+        ]);
+
+      if (wasteData.length > 0) {
+        doc.addPage();
+        doc.setFillColor(26, 26, 26);
+        doc.rect(0, 0, pageWidth, 20, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.text('3. RELATÓRIO DE DESPERDÍCIOS (WASTE)', 15, 13);
+        
+        autoTable(doc, {
+          startY: 25,
+          head: [['Data', 'Produto', 'Praça', 'Qtd', 'Impacto Financeiro']],
+          body: wasteData,
+          theme: 'striped',
+          headStyles: { fillColor: [239, 68, 68], textColor: [255, 255, 255] },
+          styles: { fontSize: 8 }
+        });
+
+        const totalWaste = wasteLogs.reduce((acc, w) => acc + w.cost_impact, 0);
+        doc.setFontSize(10);
+        doc.setTextColor(239, 68, 68);
+        doc.text(`Impacto Financeiro Total no Período: R$ ${totalWaste.toFixed(2)}`, 15, (doc as any).lastAutoTable.finalY + 10);
+      }
 
       // Footer
       const totalPages = (doc as any).internal.getNumberOfPages();
@@ -303,6 +349,44 @@ export default function AlmoxRelatorio() {
             </div>
           </div>
         )}
+
+        {/* Waste Section */}
+        <div className="pt-8 border-t border-outline-variant/10">
+          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-error mb-4">Registro de Desperdícios</h4>
+          {wasteLoading ? (
+            <div className="flex justify-center py-4"><Loader2 className="animate-spin text-error" /></div>
+          ) : wasteLogs.length === 0 ? (
+            <p className="text-outline-variant text-xs text-center py-4">Nenhum desperdício registrado no período.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[10px] border border-error/10 rounded-2xl overflow-hidden">
+                <thead className="bg-error/5">
+                  <tr>
+                    <th className="py-3 px-4 text-left font-black uppercase tracking-widest text-error">Data</th>
+                    <th className="py-3 px-4 text-left font-black uppercase tracking-widest text-error">Produto</th>
+                    <th className="py-3 px-4 text-left font-black uppercase tracking-widest text-error">Praça</th>
+                    <th className="py-3 px-4 text-right font-black uppercase tracking-widest text-error">Impacto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wasteLogs
+                    .filter(w => {
+                      const d = w.created_at.split('T')[0];
+                      return d >= startDate && d <= endDate;
+                    })
+                    .map(w => (
+                    <tr key={w.id} className="border-b border-error/5 last:border-0 hover:bg-error/5 transition-colors">
+                      <td className="py-3 px-4 font-bold text-outline-variant">{new Date(w.created_at).toLocaleDateString('pt-BR')}</td>
+                      <td className="py-3 px-4 font-black text-on-surface uppercase">{w.product_name}</td>
+                      <td className="py-3 px-4 font-black text-on-surface-variant uppercase">{w.station}</td>
+                      <td className="py-3 px-4 text-right font-black text-error">R$ {w.cost_impact.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {/* Footer */}
         <div className="text-center pt-6 border-t border-outline-variant/10">

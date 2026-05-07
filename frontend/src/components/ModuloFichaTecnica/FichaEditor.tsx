@@ -26,6 +26,7 @@ import Button from '../shared/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFTFichas, FTFicha, FTFichaIngrediente, FTFichaComplemento } from '../../hooks/useFTFichas';
 import { useFTInsumos } from '../../hooks/useFTInsumos';
+import { useStations } from '../../hooks/useStations';
 import { calcularPLFinal, calcularCustoIngrediente, calcularResumoFicha, verificarAlertasAnvisa, detectarAlergenos } from '../../utils/engineFT';
 import { useModal } from '../../contexts/ModalContext';
 import { exportToExcel } from '../../services/exportService';
@@ -51,6 +52,11 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
   const [rendimento, setRendimento] = useState(1);
   const [precoVenda, setPrecoVenda] = useState<number>(0);
   const [cmvIdeal, setCmvIdeal] = useState(30);
+  const [pracaId, setPracaId] = useState<string>('');
+  const [imagemUrl, setImagemUrl] = useState<string>('');
+  const [imagemBase64, setImagemBase64] = useState<string>('');
+
+  const { stations } = useStations();
 
   // Detail States
   const [ingredientes, setIngredientes] = useState<Partial<FTFichaIngrediente>[]>([]);
@@ -76,6 +82,9 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
         setPrecoVenda(data.preco_venda);
         setCmvIdeal(data.cmv_ideal || 30);
         setIngredientes(data.ingredientes || []);
+        setPracaId(data.praca_id || '');
+        setImagemUrl(data.imagem_url || '');
+        setImagemBase64(data.imagem_base64 || '');
         if (data.complementos) setComplementos(data.complementos);
       });
     } else {
@@ -164,6 +173,21 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
     setIngredientes(ingredientes.filter(i => i.id !== id));
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit for base64
+        showAlert('Arquivo muito grande', 'Por favor, selecione uma imagem de até 2MB para garantir a performance do sistema.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagemBase64(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleDelete = async () => {
     if (!fichaId) return;
     const confirmed = await showConfirm(
@@ -185,7 +209,17 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
     setIsSaving(true);
     try {
       await upsertFicha({
-        ficha: { id: fichaId, nome, categoria, rendimento_total: rendimento, preco_venda: precoVenda, cmv_ideal: cmvIdeal },
+        ficha: { 
+          id: fichaId, 
+          nome, 
+          categoria, 
+          rendimento_total: rendimento, 
+          preco_venda: precoVenda, 
+          cmv_ideal: cmvIdeal, 
+          praca_id: pracaId, 
+          imagem_url: imagemUrl,
+          imagem_base64: imagemBase64 
+        },
         ingredientes: ingredientes.filter(i => i.insumo_id).map(({ id, insumo_nome, preco_unitario_base, ...rest }: any) => rest),
         complementos: { ...complementos, contem_gluten: complementos.contem_gluten }
       });
@@ -338,6 +372,53 @@ export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
                     <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[9px] font-black text-outline-variant/40 uppercase">KG / UN</span>
                   </div>
                </div>
+            </div>
+
+            <div className="bg-surface-container-low/30 px-4 md:px-10 pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-10 border-b border-outline-variant/5">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 mb-3 block">Praça Responsável</label>
+                <div className="relative group">
+                  <select 
+                   value={pracaId} 
+                   onChange={e => setPracaId(e.target.value)} 
+                   disabled={!canEdit}
+                   className={`w-full appearance-none bg-surface-container-highest/30 border-2 border-transparent focus:border-primary/20 rounded-[20px] p-5 pr-12 text-sm font-black text-on-surface outline-none uppercase cursor-pointer ${!canEdit && 'cursor-not-allowed opacity-80'}`}
+                  >
+                    <option value="" className="bg-surface-container-highest text-on-surface font-black uppercase">Selecionar Praça...</option>
+                    {stations.map(s => (
+                      <option key={s.id} value={s.id} className="bg-surface-container-highest text-on-surface font-black uppercase">{s.display_name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none group-focus-within:text-primary transition-colors" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-outline-variant/60 mb-3 block">Foto de Montagem (Interna)</label>
+                <div className="flex gap-4">
+                  <div className="flex-1 relative group">
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={!canEdit}
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <label 
+                      htmlFor="image-upload"
+                      className={`w-full flex items-center justify-between bg-surface-container-highest/30 border-2 border-dashed border-outline-variant/20 hover:border-primary/40 rounded-[20px] p-5 text-xs font-black text-outline-variant cursor-pointer transition-all ${!canEdit && 'cursor-not-allowed opacity-50'}`}
+                    >
+                      <span>{imagemBase64 ? 'ALTERAR IMAGEM' : 'CARREGAR IMAGEM'}</span>
+                      <Maximize2 size={16} />
+                    </label>
+                  </div>
+                  {(imagemBase64 || imagemUrl) && (
+                    <div className="w-16 h-16 rounded-[16px] overflow-hidden border-2 border-primary/20 bg-black/20">
+                      <img src={imagemBase64 || imagemUrl} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Tabela de Insumos */}

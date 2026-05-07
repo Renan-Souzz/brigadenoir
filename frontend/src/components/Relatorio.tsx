@@ -4,7 +4,7 @@ import { calculateStationEfficiency } from '../lib/stats';
 import PageLayout from './shared/PageLayout';
 import StatCard from './shared/StatCard';
 import { 
-  TrendingUp, AlertCircle, PackageCheck, Loader2, Calendar, Users, Plus, Minus, Save, RefreshCcw, ChefHat, Clock, AlertTriangle, X, FileText, Download
+  TrendingUp, AlertCircle, PackageCheck, Loader2, Calendar, Users, Plus, Minus, Save, RefreshCcw, ChefHat, Clock, AlertTriangle, X, FileText, Download, Trash2
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -89,23 +89,40 @@ export default function Relatorio() {
   
   const isLoading = paxLoading || reportLoading;
 
-  const todayStr = useMemo(() => formatLocalDate(), []);
-  const todayPax = useMemo(() => paxData.find(p => p.date === todayStr), [paxData, todayStr]);
+  const [selectedDate, setSelectedDate] = useState(() => formatLocalDate());
+  const selectedDatePax = useMemo(() => paxData.find(p => p.date === selectedDate), [paxData, selectedDate]);
   
   const [lunchPax, setLunchPax] = useState(0);
   const [dinnerPax, setDinnerPax] = useState(0);
   const [isSavingPax, setIsSavingPax] = useState(false);
 
-  React.useEffect(() => {
-    if (todayPax) {
-      setLunchPax(todayPax.lunch_pax);
-      setDinnerPax(todayPax.dinner_pax);
+  const pastSevenDays = useMemo(() => {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push({
+        date: formatLocalDate(d),
+        label: i === 0 ? 'Hoje' : d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' }),
+        full: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+      });
     }
-  }, [todayPax]);
+    return days;
+  }, []);
+
+  React.useEffect(() => {
+    if (selectedDatePax) {
+      setLunchPax(selectedDatePax.lunch_pax);
+      setDinnerPax(selectedDatePax.dinner_pax);
+    } else {
+      setLunchPax(0);
+      setDinnerPax(0);
+    }
+  }, [selectedDatePax, selectedDate]);
 
   const analytics = useMemo(() => {
     if (!reportData) return null;
-    const { tasks, insumos, pax, movements, fichas } = reportData;
+    const { tasks, insumos, pax, movements, fichas, waste } = reportData;
 
     // 1. Efficiency Chart
     const historyData = [];
@@ -219,6 +236,19 @@ export default function Relatorio() {
 
     const totalTheoreticalCost = totalPaxPeriod * avgCostPerPax;
 
+    // 7. Waste Analytics
+    const totalWasteCost = waste?.reduce((acc: number, w: any) => acc + (w.cost_impact || 0), 0) || 0;
+    const wasteByStation = activeStations.map(s => {
+      const stationWaste = waste?.filter((w: any) => w.station === s.id) || [];
+      const cost = stationWaste.reduce((acc: number, w: any) => acc + (w.cost_impact || 0), 0);
+      return {
+        id: s.id,
+        station: s.display_name,
+        cost,
+        count: stationWaste.length
+      };
+    });
+
     return { 
       historyData, 
       totalPaxPeriod, 
@@ -235,7 +265,10 @@ export default function Relatorio() {
       fichasStats,
       avgCMV,
       totalTheoreticalCost,
-      avgCostPerPax
+      avgCostPerPax,
+      totalWasteCost,
+      wasteByStation,
+      rawWaste: waste
     };
   }, [reportData, paxData, activeStations, period]);
 
@@ -243,7 +276,7 @@ export default function Relatorio() {
     setIsSavingPax(true);
     try {
       await upsertPax({
-        date: todayStr,
+        date: selectedDate,
         lunch_pax: lunchPax,
         dinner_pax: dinnerPax
       });
@@ -288,7 +321,8 @@ export default function Relatorio() {
         ['Eficiência Média da Cozinha', `${analytics.overallEfficiency}%`],
         ['Total de PAX no Período', String(analytics.totalPaxPeriod)],
         ['Eficiência Média de Tarefas', `${analytics.overallEfficiency}%`],
-        ['Estoque Crítico (Praças)', String(analytics.stationStats.reduce((acc, s) => acc + (s.hasLowStock ? 1 : 0), 0))]
+        ['Estoque Crítico (Praças)', String(analytics.stationStats.reduce((acc, s) => acc + (s.hasLowStock ? 1 : 0), 0))],
+        ['Total Desperdício (Impacto)', `R$ ${analytics.totalWasteCost.toFixed(2)}`]
       ],
       theme: 'striped',
       headStyles: { fillColor: [166, 204, 227], textColor: [26, 26, 26] }
@@ -314,9 +348,25 @@ export default function Relatorio() {
       headStyles: { fillColor: [212, 175, 55], textColor: [255, 255, 255] }
     });
 
-    // Section 3: Detalhamento por Praça
+    // Section: Desperdício por Praça
     doc.setFontSize(16);
-    doc.text('3. EFICIÊNCIA POR PRAÇA', 15, (doc as any).lastAutoTable.finalY + 15);
+    doc.text('3. DESPERDÍCIO POR PRAÇA', 15, (doc as any).lastAutoTable.finalY + 15);
+    
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 20,
+      head: [['Praça', 'Qtd Registros', 'Impacto Financeiro']],
+      body: analytics.wasteByStation.map(s => [
+        s.station,
+        String(s.count),
+        `R$ ${s.cost.toFixed(2)}`
+      ]),
+      theme: 'striped',
+      headStyles: { fillColor: [239, 68, 68], textColor: [255, 255, 255] }
+    });
+
+    // Section 3: Detalhamento por Praça (renumbered to 4)
+    doc.setFontSize(16);
+    doc.text('4. EFICIÊNCIA POR PRAÇA', 15, (doc as any).lastAutoTable.finalY + 15);
     
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 20,
@@ -408,9 +458,27 @@ export default function Relatorio() {
         <div className="lg:col-span-4 flex flex-col gap-6">
           {/* Form de Atendimento */}
           <div className="bg-surface-container rounded-3xl p-6 border border-outline-variant/10 shadow-xl">
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-on-surface flex items-center gap-2 mb-6">
-              <Users size={16} className="text-primary" /> Atendimento de Hoje
-            </h3>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-on-surface flex items-center gap-2">
+                <Users size={16} className="text-primary" /> Atendimento
+              </h3>
+              <span className="text-[10px] font-black text-outline-variant uppercase bg-surface-container-highest px-2 py-1 rounded-md">{selectedDate.split('-').reverse().join('/')}</span>
+            </div>
+
+            {/* Date Selector */}
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 custom-scrollbar snap-x">
+               {pastSevenDays.map(d => (
+                 <button
+                    key={d.date}
+                    onClick={() => setSelectedDate(d.date)}
+                    className={`flex-shrink-0 snap-start flex flex-col items-center justify-center w-14 h-14 rounded-2xl border transition-all ${selectedDate === d.date ? 'bg-primary border-primary text-on-primary shadow-lg shadow-primary/20 scale-105' : 'bg-surface-container-low border-outline-variant/10 text-outline-variant hover:border-primary/30'}`}
+                 >
+                    <span className="text-[8px] font-black uppercase tracking-tighter">{d.label.split(' ')[0]}</span>
+                    <span className="text-xs font-black tracking-tight">{d.label.split(' ')[1] || d.full.split('/')[0]}</span>
+                 </button>
+               ))}
+            </div>
+
             <div className="space-y-4">
               {[
                 { label: 'Almoço', val: lunchPax, set: setLunchPax, color: 'bg-primary' },
@@ -607,6 +675,67 @@ export default function Relatorio() {
                     ? "Alerta: O CMV médio está acima do ideal (30-35%). Revise os preços de venda ou reduza o custo dos insumos nas fichas técnicas."
                     : "Excelente! O CMV projetado está dentro da meta operacional. Mantenha o controle de desperdício para garantir a margem."}
                 </p>
+             </div>
+          </div>
+
+          {/* New: Waste Management Section */}
+          <div className="bg-surface-container rounded-3xl p-6 border border-outline-variant/10 shadow-xl overflow-hidden relative">
+             <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                <Trash2 size={120} className="text-error" />
+             </div>
+             <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-on-surface flex items-center gap-2">
+                   <Trash2 size={16} className="text-error" /> Controle de Desperdícios
+                </h3>
+                <div className="flex items-center gap-2 bg-error/10 px-3 py-1 rounded-full">
+                   <span className="text-[10px] font-black text-error uppercase">Impacto Total: R$ {analytics?.totalWasteCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                {/* Por Praça */}
+                <div className="bg-surface-container-low p-5 rounded-2xl border border-outline-variant/5">
+                   <h4 className="text-[10px] font-black uppercase tracking-widest text-outline-variant mb-4">Desperdício por Praça</h4>
+                   <div className="space-y-3">
+                      {analytics?.wasteByStation.sort((a, b) => b.cost - a.cost).map(s => (
+                         <div key={s.id} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                               <div className="w-1.5 h-1.5 rounded-full bg-error" />
+                               <span className="text-xs font-bold text-on-surface uppercase">{s.station}</span>
+                            </div>
+                            <div className="text-right">
+                               <span className="text-xs font-black text-on-surface">R$ {s.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                               <p className="text-[8px] text-outline-variant font-black uppercase">{s.count} registros</p>
+                            </div>
+                         </div>
+                      ))}
+                      {analytics?.wasteByStation.reduce((acc, s) => acc + s.count, 0) === 0 && (
+                         <p className="text-[10px] text-outline-variant italic py-4 text-center">Nenhum desperdício registrado.</p>
+                      )}
+                   </div>
+                </div>
+
+                {/* Ultimos Registros */}
+                <div className="bg-surface-container-low p-5 rounded-2xl border border-outline-variant/5">
+                   <h4 className="text-[10px] font-black uppercase tracking-widest text-outline-variant mb-4">Últimas Ocorrências</h4>
+                   <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                      {analytics?.rawWaste.slice(0, 5).map((w: any) => (
+                         <div key={w.id} className="p-3 bg-surface-container rounded-xl border border-outline-variant/10 flex justify-between items-center">
+                            <div>
+                               <span className="text-xs font-black text-on-surface uppercase block">{w.product_name}</span>
+                               <span className="text-[8px] font-black text-outline-variant uppercase tracking-tighter">{w.reason || 'Sem motivo especificado'}</span>
+                            </div>
+                            <div className="text-right">
+                               <span className="text-xs font-black text-error">-{w.quantity} {w.unit}</span>
+                               <p className="text-[8px] text-outline-variant font-black uppercase">{new Date(w.created_at).toLocaleDateString('pt-BR')}</p>
+                            </div>
+                         </div>
+                      ))}
+                      {analytics?.rawWaste.length === 0 && (
+                         <p className="text-[10px] text-outline-variant italic py-4 text-center">Tudo limpo! Sem perdas recentes.</p>
+                      )}
+                   </div>
+                </div>
              </div>
           </div>
         </div>

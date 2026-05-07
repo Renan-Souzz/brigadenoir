@@ -41,6 +41,7 @@ import Escala from './components/Escala';
 import Modal from './components/shared/Modal';
 import ProfileOnboarding from './components/ProfileOnboarding';
 import Documentation from './components/Documentation';
+import ModoDePreparo from './components/ModoDePreparo';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ const VIEWS: Record<TabId, React.ComponentType> = {
   dashboard: Dashboard,
   insumos: Insumos,
   checklist: Checklist,
-  fichas: Fichas,
+  fichas: ModoDePreparo,
   almoxarifado: Almoxarifado,
   brigada: Brigada,
   escala: Escala,

@@ -25,6 +25,7 @@ export interface Insumo {
   last_prep_at: string;
   min_stock: number;
   updated_by?: string;
+  ft_insumo_id?: string;
 }
 
 export interface StationStreak {
@@ -38,7 +39,7 @@ const PAGE_SIZE = 20;
 export function useInsumos(station?: string) {
   const queryClient = useQueryClient();
 
-  const SELECT_FIELDS = 'id, name, categoria, station, quantity, unit, status, expiry_date, last_prep_at, min_stock, updated_by';
+  const SELECT_FIELDS = 'id, name, categoria, station, quantity, unit, status, expiry_date, last_prep_at, min_stock, updated_by, ft_insumo_id';
 
   const infiniteQuery = useInfiniteQuery({
     queryKey: ['insumos', 'infinite', station],

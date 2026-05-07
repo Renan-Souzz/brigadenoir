@@ -12,6 +12,7 @@ export interface ModoPreparo {
   ticket_avg?: string;
   status?: string;
   image_url?: string;
+  image_base64?: string;
   created_at?: string;
 }
 

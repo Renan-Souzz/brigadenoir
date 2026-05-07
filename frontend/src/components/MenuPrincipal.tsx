@@ -41,7 +41,7 @@ const CATEGORIAS = ['Entrada', 'Prato Principal', 'Sobremesa'];
 export default function MenuPrincipal() {
   const { profile, isManagement } = useAuth();
   const { showConfirm, showAlert } = useModal();
-  const { searchFilter, setSearchFilter } = useNavigation();
+  const { activeTab, setActiveTab, searchFilter, setSearchFilter } = useNavigation();
   const { 
     data: dishes = [], 
     isLoading, 
@@ -74,6 +74,7 @@ export default function MenuPrincipal() {
   const [pracaResponsavel, setPracaResponsavel] = useState('saucier');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Porção edit inline
@@ -127,9 +128,19 @@ export default function MenuPrincipal() {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) {
+      showAlert('IMAGEM MUITO GRANDE', 'Por favor, selecione uma imagem de até 2MB.');
+      return;
+    }
+
     setImageFile(file);
     const reader = new FileReader();
-    reader.onload = () => setImagePreview(reader.result as string);
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setImagePreview(base64);
+      setImageBase64(base64);
+    };
     reader.readAsDataURL(file);
   };
 
@@ -142,7 +153,8 @@ export default function MenuPrincipal() {
       setDescription(dish.description || '');
       setCategory(dish.category);
       setPracaResponsavel(dish.praca_responsavel || 'saucier');
-      setImagePreview(dish.image_url || null);
+      setImagePreview(dish.image_base64 || dish.image_url || null);
+      setImageBase64(dish.image_base64 || '');
       setImageFile(null);
     } else {
       setEditDish(null);
@@ -151,6 +163,7 @@ export default function MenuPrincipal() {
       setCategory(CATEGORIAS[0]);
       setPracaResponsavel(profile?.station || 'saucier');
       setImagePreview(null);
+      setImageBase64('');
       setImageFile(null);
     }
     setIsModalOpen(true);
@@ -160,18 +173,14 @@ export default function MenuPrincipal() {
     if (!title.trim()) return;
     setSaving(true);
     try {
-      let imageUrl = editDish?.image_url || '';
-      if (imageFile) {
-        const url = await uploadImage(imageFile);
-        if (url) imageUrl = url;
-      }
       await upsertDish({
         id: editDish?.id,
         title: title.trim(),
         description: description.trim(),
         category,
         praca_responsavel: pracaResponsavel,
-        image_url: imageUrl,
+        image_base64: imageBase64 || undefined,
+        image_url: editDish?.image_url, // Maintain legacy fallback
         porcoes: editDish ? undefined : 0
       });
       setIsModalOpen(false);
@@ -319,9 +328,9 @@ export default function MenuPrincipal() {
                     const isEditing = editingPorcao === dish.id;
 
                     return (
-                      <div key={dish.id} className={`group rounded-2xl border overflow-hidden transition-all duration-500 ${isCritical && canEdit ? 'bg-error/5 border-red-500/60 shadow-[0_0_30px_-5px_rgba(239,68,68,0.3)] ring-1 ring-red-500/50' : 'bg-surface-container border-outline-variant/10'}`}>
+                      <div key={dish.id} className={`group rounded-2xl border overflow-hidden transition-all duration-500 hover:shadow-2xl ${isCritical && canEdit ? 'bg-error/5 border-red-500/60 shadow-[0_0_30px_-5px_rgba(239,68,68,0.3)] ring-1 ring-red-500/50' : 'bg-surface-container border-outline-variant/10'}`}>
                         <div className="relative w-full h-48 bg-surface-container-highest overflow-hidden">
-                          {dish.image_url ? <img src={dish.image_url} alt={dish.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed size={40} className="opacity-20 text-outline-variant" /></div>}
+                          {(dish.image_base64 || dish.image_url) ? <img src={dish.image_base64 || dish.image_url} alt={dish.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" /> : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed size={40} className="opacity-20 text-outline-variant" /></div>}
                           <div className={`absolute top-3 right-3 px-3 py-1.5 rounded-lg backdrop-blur-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${isCritical ? 'bg-red-500 text-white animate-pulse' : isLow ? 'bg-red-500/80 text-white animate-pulse' : 'bg-black/60 text-white'}`}>
                             {(isLow || isCritical) && canEdit && <AlertTriangle size={12} />} {dish.porcoes} {dish.porcoes === 1 ? 'porção' : 'porções'}
                           </div>
@@ -358,9 +367,23 @@ export default function MenuPrincipal() {
                             );
                           })()}
 
-                          <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{dish.description}</p>
+                          <p className="text-sm text-on-surface-variant mt-2 line-clamp-2 h-10">{dish.description}</p>
                           <div className="flex items-center justify-between mt-4 pt-4 border-t border-outline-variant/10">
-                            <span className="px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] text-primary flex items-center gap-1.5"><Flame size={10} /> {formatStationName(dish.praca_responsavel)}</span>
+                            <button 
+                              onClick={() => {
+                                // Find matching ficha to link to Modo de Preparo
+                                const matchingFicha = fichas.find(f => f.nome.toLowerCase() === dish.title.toLowerCase());
+                                if (matchingFicha) {
+                                  setSearchFilter(dish.title);
+                                  setActiveTab('fichas');
+                                } else {
+                                  showAlert('MODO DE PREPARO', 'Este prato ainda não possui uma ficha técnica detalhada vinculada.');
+                                }
+                              }}
+                              className="px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] text-primary flex items-center gap-1.5 hover:bg-primary/20 transition-all"
+                            >
+                              <BookOpen size={10} /> Ver Preparo
+                            </button>
                             <div className="flex items-center gap-1.5">
                               {canEdit && (isEditing ? (
                                 <div className="flex items-center gap-1 bg-surface-container-highest rounded-lg border border-outline-variant/10 p-1">

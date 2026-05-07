@@ -7,6 +7,7 @@ import { useAlmoxMovimentacoes, LoteSaldo } from '../../hooks/useAlmoxMovimentac
 import { useAuth } from '../../contexts/AuthContext';
 import { useModal } from '../../contexts/ModalContext';
 import { formatLocalDate } from '../../lib/dateUtils';
+import InsumoAutocomplete from '../shared/InsumoAutocomplete';
 
 const CATEGORIAS = [
   { id: 'proteinas', label: 'Proteínas' },
@@ -24,6 +25,7 @@ export default function AlmoxChegadas() {
 
   const [isCreating, setIsCreating] = useState(false);
   const [nome, setNome] = useState('');
+  const [ftInsumoId, setFtInsumoId] = useState<string | undefined>(undefined);
   const [categoria, setCategoria] = useState('proteinas');
   const [pesoBruto, setPesoBruto] = useState('');
   const [validade, setValidade] = useState('');
@@ -46,6 +48,7 @@ export default function AlmoxChegadas() {
     try {
       await createMovimentacao({
         produto_nome: nome.toUpperCase().trim(),
+        ft_insumo_id: ftInsumoId,
         categoria,
         tipo: 'chegada',
         peso_bruto_kg: pb,
@@ -54,6 +57,7 @@ export default function AlmoxChegadas() {
       });
       setIsCreating(false);
       setNome('');
+      setFtInsumoId(undefined);
       setPesoBruto('');
       setValidade('');
       setDataChegada(formatLocalDate());
@@ -137,13 +141,14 @@ export default function AlmoxChegadas() {
               <label className="block text-[10px] font-black uppercase tracking-widest text-outline-variant mb-2">
                 <Tag size={10} className="inline mr-1" />Produto
               </label>
-              <input
-                type="text"
-                required
-                value={nome}
-                onChange={e => setNome(e.target.value)}
-                placeholder="Ex: FILÉ MIGNON, CONTRA FILÉ..."
-                className="w-full bg-surface-container p-3 rounded-xl border border-outline-variant/20 text-sm focus:border-green-400 uppercase font-bold text-on-surface"
+              <InsumoAutocomplete 
+                defaultValue={nome}
+                onSelect={(item) => {
+                  setNome(item.nome);
+                  setFtInsumoId(item.id);
+                  // Optionally match category if the catalog item has one (though ft_insumos doesn't have category yet)
+                }}
+                placeholder="BUSQUE NO CATÁLOGO OU DIGITE..."
               />
             </div>
             <div>

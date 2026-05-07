@@ -33,6 +33,7 @@ import {
 import { useInsumos, Insumo, useInsumoLogs, useStationStreaks, useInsumoHistory } from '../hooks/useInsumos';
 import { useProfiles } from '../hooks/useProfiles';
 import { useStations } from '../hooks/useStations';
+import InsumoAutocomplete from './shared/InsumoAutocomplete';
 
 const CATEGORIAS = ['Proteínas', 'Laticínios', 'Vegetais', 'Molhos', 'Secos', 'Descartáveis', 'Bebidas', 'Outros'];
 
@@ -298,6 +299,7 @@ export default function Insumos() {
   const [newMinStock, setNewMinStock] = useState('3');
   const [newExpiry, setNewExpiry] = useState('');
   const [newCategory, setNewCategory] = useState(CATEGORIAS[0]);
+  const [ftInsumoId, setFtInsumoId] = useState<string | undefined>(undefined);
   const [formStation, setFormStation] = useState<string>(profile?.station || '');
 
   const { data: allProfiles = [] } = useProfiles();
@@ -353,10 +355,11 @@ export default function Insumos() {
         categoria: newCategory,
         station: targetStation,
         expiry_date: newExpiry || undefined,
+        ft_insumo_id: ftInsumoId,
         userId: user.id
       });
       setIsFormOpen(false);
-      setNewName(''); setNewQty(''); setNewExpiry(''); setNewMinStock('3');
+      setNewName(''); setNewQty(''); setNewExpiry(''); setNewMinStock('3'); setFtInsumoId(undefined);
     } catch (err: any) {
       showAlert('Falha na Operação', err.message);
     }
@@ -579,8 +582,17 @@ export default function Insumos() {
                 )}
                 
                 <div>
-                  <label className="text-[10px] font-bold text-outline-variant uppercase tracking-widest block mb-1">Item</label>
-                  <input type="text" required value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="EX: MOLHO HOLLANDAISE..." className="w-full bg-surface-container-highest border border-outline-variant/10 rounded-xl p-3 text-sm font-semibold text-on-surface uppercase outline-none" />
+                  <label className="text-[10px] font-bold text-outline-variant uppercase tracking-widest block mb-1">Item (Busca no Catálogo)</label>
+                  <InsumoAutocomplete 
+                    defaultValue={newName}
+                    onSelect={(item) => {
+                      setNewName(item.nome);
+                      setFtInsumoId(item.id);
+                      setNewUnit(item.unidade_base === 'g' ? 'Gramas' : item.unidade_base === 'ml' ? 'ML' : 'Unidade');
+                      // Try to match category if possible or keep current
+                    }}
+                    placeholder="DIGITE O NOME OU BUSQUE NO CATÁLOGO..."
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

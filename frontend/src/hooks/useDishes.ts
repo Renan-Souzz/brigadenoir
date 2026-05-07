@@ -10,6 +10,7 @@ export interface Dish {
   praca_responsavel: string;
   porcoes: number;
   image_url: string;
+  image_base64?: string;
   created_at?: string;
 }
 

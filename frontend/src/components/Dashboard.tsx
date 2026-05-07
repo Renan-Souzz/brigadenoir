@@ -1,5 +1,7 @@
-import React, { useMemo } from 'react';
-import * as Icons from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import {
+  Briefcase, Palmtree, Coins, ChevronRight, Users, Calendar, Package, Trash2, ClipboardCheck, Clock, AlertTriangle, Utensils, Info
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useNavigation, TabId } from '../contexts/NavigationContext';
@@ -13,6 +15,8 @@ import { useInsumos } from '../hooks/useInsumos';
 import { useDishes } from '../hooks/useDishes';
 import { useSchedule } from '../hooks/useSchedule';
 import { usePax } from '../hooks/usePax';
+import WasteModal from './modals/WasteModal';
+import Button from './shared/Button';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -78,12 +82,12 @@ function EscalaHighlight({ schedule, onClick }: { schedule: any[]; onClick: () =
   });
 
   const statusConfig: Record<string, { label: string; color: string; bg: string; icon: any; emoji: string }> = {
-    trabalho: { label: 'Trabalho', color: 'text-primary', bg: 'bg-primary/10', icon: Icons.Briefcase, emoji: '🔥' },
-    folga: { label: 'Folga', color: 'text-secondary', bg: 'bg-secondary/10', icon: Icons.Palmtree, emoji: '🌴' },
-    compensa: { label: 'Compensa', color: 'text-amber-400', bg: 'bg-amber-400/10', icon: Icons.Coins, emoji: '💰' },
+    trabalho: { label: 'Trabalho', color: 'text-primary', bg: 'bg-primary/10', icon: Briefcase, emoji: '🔥' },
+    folga: { label: 'Folga', color: 'text-secondary', bg: 'bg-secondary/10', icon: Palmtree, emoji: '🌴' },
+    compensa: { label: 'Compensa', color: 'text-amber-400', bg: 'bg-amber-400/10', icon: Coins, emoji: '💰' },
   };
-  const cfg = statusConfig[currentStatus];
-  const StatusIcon = cfg.icon;
+  const cfg = statusConfig[currentStatus] || statusConfig.trabalho;
+  const StatusIcon = cfg.icon || Briefcase;
 
   return (
     <div
@@ -107,7 +111,7 @@ function EscalaHighlight({ schedule, onClick }: { schedule: any[]; onClick: () =
               </p>
             </div>
           </div>
-          <Icons.ChevronRight size={18} className="text-outline-variant/30 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+          <ChevronRight size={18} className="text-outline-variant/30 group-hover:text-primary group-hover:translate-x-1 transition-all" />
         </div>
 
         {/* Today status */}
@@ -121,7 +125,7 @@ function EscalaHighlight({ schedule, onClick }: { schedule: any[]; onClick: () =
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
           <div className="bg-surface-container/60 rounded-2xl p-4 border border-outline-variant/10">
             <div className="flex items-center gap-2 mb-2">
-              <Icons.Palmtree size={14} className="text-secondary" />
+              <Palmtree size={14} className="text-secondary" />
               <span className="text-[9px] font-black text-outline-variant uppercase tracking-widest">Próxima Folga</span>
             </div>
             {nextFolga ? (
@@ -135,7 +139,7 @@ function EscalaHighlight({ schedule, onClick }: { schedule: any[]; onClick: () =
           </div>
           <div className="bg-surface-container/60 rounded-2xl p-4 border border-outline-variant/10">
             <div className="flex items-center gap-2 mb-2">
-              <Icons.Calendar size={14} className="text-amber-400" />
+              <Calendar size={14} className="text-amber-400" />
               <span className="text-[9px] font-black text-outline-variant uppercase tracking-widest">Próx. Domingo Off</span>
             </div>
             {nextSundayOff ? (
@@ -178,8 +182,8 @@ function TeamFolgasCard({ profiles, schedule }: { profiles: any[]; schedule: any
   const today = new Date();
   const todayStr = formatLocalDate(today);
 
-  const membersInfo = profiles.map(p => {
-    const userSchedule = schedule.filter(s => s.user_id === p.id);
+  const membersInfo = (profiles || []).map(p => {
+    const userSchedule = (schedule || []).filter(s => s && s.user_id === p.id);
     const todayDuty = userSchedule.find(s => s.date === todayStr);
     const nextFolga = getNextEvent(userSchedule, 'folga', today);
     return {
@@ -196,7 +200,7 @@ function TeamFolgasCard({ profiles, schedule }: { profiles: any[]; schedule: any
     <div className="bg-surface-container-low/40 backdrop-blur-xl border border-outline-variant/10 rounded-[2rem] p-6 md:p-8">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2.5 rounded-xl bg-secondary/10 border border-secondary/20">
-          <Icons.Users size={18} className="text-secondary" />
+          <Users size={18} className="text-secondary" />
         </div>
         <div>
           <h4 className="text-sm font-black text-on-surface uppercase tracking-tight">Folgas da Equipe</h4>
@@ -231,19 +235,24 @@ function TeamFolgasCard({ profiles, schedule }: { profiles: any[]; schedule: any
   );
 }
 
-function QuickLinks({ setActiveTab, pendingTasks, alertCount }: { setActiveTab: (t: TabId) => void; pendingTasks: number; alertCount: number }) {
+function QuickLinks({ setActiveTab, pendingTasks, alertCount, onWasteClick }: { setActiveTab: (t: TabId) => void; pendingTasks: number; alertCount: number; onWasteClick: () => void }) {
   const links = [
-    { tab: 'checklist' as TabId, icon: Icons.ClipboardCheck, label: 'Checklist', detail: `${pendingTasks} pendente${pendingTasks !== 1 ? 's' : ''}`, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
-    { tab: 'escala' as TabId, icon: Icons.Calendar, label: 'Escala Completa', detail: 'Ver calendário', color: 'text-secondary', bg: 'bg-secondary/10', border: 'border-secondary/20' },
-    { tab: 'insumos' as TabId, icon: Icons.Package, label: 'Insumos', detail: `${alertCount} alerta${alertCount !== 1 ? 's' : ''}`, color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/20' },
+    { tab: 'checklist' as TabId, icon: ClipboardCheck, label: 'Checklist', detail: `${pendingTasks} pendente${pendingTasks !== 1 ? 's' : ''}`, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
+    { tab: 'escala' as TabId, icon: Calendar, label: 'Escala Completa', detail: 'Ver calendário', color: 'text-secondary', bg: 'bg-secondary/10', border: 'border-secondary/20' },
+    { tab: 'insumos' as TabId, icon: Package, label: 'Insumos', detail: `${alertCount} alerta${alertCount !== 1 ? 's' : ''}`, color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/20' },
+    { tab: 'waste' as any, icon: Trash2, label: 'Desperdício', detail: 'Registrar perda', color: 'text-error', bg: 'bg-error/10', border: 'border-error/20', isAction: true, onClick: onWasteClick },
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {links.map(l => {
         const Icon = l.icon;
         return (
-          <button key={l.tab} onClick={() => setActiveTab(l.tab)} className={`${l.bg} border ${l.border} rounded-2xl p-4 flex flex-col items-center gap-2 hover:scale-[1.03] active:scale-95 transition-all duration-300 group`}>
+          <button 
+            key={l.label} 
+            onClick={() => (l as any).isAction ? (l as any).onClick?.() : setActiveTab(l.tab)} 
+            className={`${l.bg} border ${l.border} rounded-2xl p-4 flex flex-col items-center gap-2 hover:scale-[1.03] active:scale-95 transition-all duration-300 group`}
+          >
             <Icon size={20} className={`${l.color} group-hover:scale-110 transition-transform`} />
             <span className={`text-[9px] font-black uppercase tracking-widest ${l.color}`}>{l.label}</span>
             <span className="text-[8px] text-outline-variant font-bold uppercase">{l.detail}</span>
@@ -266,7 +275,7 @@ function AlertCard({ icon, title, desc, footer, borderColor, onClick }: any) {
           <p className="text-sm font-black text-on-surface uppercase tracking-tight group-hover:text-primary transition-colors leading-tight">{title}</p>
           <p className="text-xs text-on-surface-variant mt-1.5 line-clamp-2 leading-relaxed">{desc}</p>
         </div>
-        <Icons.ChevronRight size={16} className="text-outline-variant/30 group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0 mt-1" />
+        <ChevronRight size={16} className="text-outline-variant/30 group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0 mt-1" />
       </div>
     </div>
   );
@@ -295,7 +304,7 @@ function StatsRow({ weekPax, monthPax, efficiency, stationName, isManagement, on
         <div className="relative">
           <MiniDonut value={Math.min(weekPax / 5, 100)} size={48} color="var(--md-sys-color-primary)" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Icons.Utensils size={14} className="text-primary" />
+            <Utensils size={14} className="text-primary" />
           </div>
         </div>
         <div>
@@ -309,7 +318,7 @@ function StatsRow({ weekPax, monthPax, efficiency, stationName, isManagement, on
         <div className="relative">
           <MiniDonut value={Math.min(monthPax / 20, 100)} size={48} color="var(--md-sys-color-secondary)" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Icons.Users size={14} className="text-secondary" />
+            <Users size={14} className="text-secondary" />
           </div>
         </div>
         <div>
@@ -341,6 +350,7 @@ export default function Dashboard() {
   const { profile, isManagement } = useAuth();
   const { notifications } = useNotifications();
   const { setActiveTab } = useNavigation();
+  const [isWasteModalOpen, setIsWasteModalOpen] = useState(false);
 
   const firstName = profile?.full_name?.split(' ')[0] || 'Chef';
 
@@ -350,9 +360,12 @@ export default function Dashboard() {
   const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
   const nextMonthKey = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
 
-  const { schedule: currentSchedule } = useSchedule(monthKey);
-  const { schedule: nextSchedule } = useSchedule(nextMonthKey);
-  const allSchedule = useMemo(() => [...currentSchedule, ...nextSchedule], [currentSchedule, nextSchedule]);
+  const { schedule: currentSchedule = [] } = useSchedule(monthKey) || {};
+  const { schedule: nextSchedule = [] } = useSchedule(nextMonthKey) || {};
+  const allSchedule = useMemo(() => [
+    ...(Array.isArray(currentSchedule) ? currentSchedule : []),
+    ...(Array.isArray(nextSchedule) ? nextSchedule : [])
+  ], [currentSchedule, nextSchedule]);
 
   const mySchedule = useMemo(() => allSchedule.filter(s => s.user_id === profile?.id), [allSchedule, profile?.id]);
 
@@ -376,9 +389,13 @@ export default function Dashboard() {
   // Alerts (kept from original)
   const alerts = useMemo(() => {
     const todayDate = new Date();
-    const alertInsumos = isManagement ? insumos : insumos.filter(i => i.station === profile?.station);
-    const alertTasks = isManagement ? tasks.filter(t => !t.is_completed) : tasks.filter(t => !t.is_completed && t.station === profile?.station);
-    const alertDishes = dishes.filter(d => d.porcoes < 2);
+    const safeInsumos = Array.isArray(insumos) ? insumos : [];
+    const safeTasks = Array.isArray(tasks) ? tasks : [];
+    const safeDishes = Array.isArray(dishes) ? dishes : [];
+
+    const alertInsumos = isManagement ? safeInsumos : safeInsumos.filter(i => i && i.station === profile?.station);
+    const alertTasks = isManagement ? safeTasks.filter(t => t && !t.is_completed) : safeTasks.filter(t => t && !t.is_completed && t.station === profile?.station);
+    const alertDishes = safeDishes.filter(d => d && d.porcoes < 2);
     const result: any[] = [];
     const twoDays = new Date(); twoDays.setDate(todayDate.getDate() + 2);
 
@@ -399,7 +416,8 @@ export default function Dashboard() {
   }, [insumos, tasks, dishes, isManagement, profile]);
 
   const pendingTasks = useMemo(() => {
-    const t = isManagement ? tasks.filter(t => !t.is_completed) : tasks.filter(t => !t.is_completed && t.station === profile?.station);
+    const safeTasks = Array.isArray(tasks) ? tasks : [];
+    const t = isManagement ? safeTasks.filter(t => t && !t.is_completed) : safeTasks.filter(t => t && !t.is_completed && t.station === profile?.station);
     return t.length;
   }, [tasks, isManagement, profile]);
 
@@ -407,26 +425,35 @@ export default function Dashboard() {
   const paxStats = useMemo(() => {
     const { start: weekStart } = getCulinaryWeekRange();
     const weekStartStr = formatLocalDate(weekStart);
-    const weekPax = paxData.filter((p: any) => p.date >= weekStartStr).reduce((a: number, p: any) => a + p.lunch_pax + p.dinner_pax, 0);
-    const monthPax = paxData.reduce((a: number, p: any) => a + p.lunch_pax + p.dinner_pax, 0);
+    if (!Array.isArray(paxData)) return { weekPax: 0, monthPax: 0 };
+    
+    const weekPax = paxData.filter((p: any) => p && p.date >= weekStartStr).reduce((a: number, p: any) => a + (p.lunch_pax || 0) + (p.dinner_pax || 0), 0);
+    const monthPax = paxData.reduce((a: number, p: any) => a + (p.lunch_pax || 0) + (p.dinner_pax || 0), 0);
     return { weekPax, monthPax };
   }, [paxData]);
 
   // Efficiency
   const efficiency = useMemo(() => {
     const stationNames = ['saucier', 'garde_manger', 'entremetier', 'rotisseur', 'poissonier', 'patissier', 'almoxarifado'];
-    if (isManagement) {
-      const all = stationNames.map(s => {
-        const st = tasks.filter(t => t.station === s);
-        const si = insumos.filter(i => i.station === s);
-        return calculateStationEfficiency(si, st);
-      });
-      const avg = all.length > 0 ? Math.round(all.reduce((a, r) => a + r.score, 0) / all.length) : 0;
-      return avg;
-    } else {
-      const st = tasks.filter(t => t.station === profile?.station);
-      const si = insumos.filter(i => i.station === profile?.station);
-      return calculateStationEfficiency(si, st).score;
+    try {
+      if (isManagement) {
+        const all = stationNames.map(s => {
+          const st = (tasks || []).filter(t => t.station === s);
+          const si = (insumos || []).filter(i => i.station === s);
+          return calculateStationEfficiency(si, st);
+        });
+        const valid = all.filter(r => r && typeof r.score === 'number' && !isNaN(r.score));
+        const avg = valid.length > 0 ? Math.round(valid.reduce((a, r) => a + r.score, 0) / valid.length) : 0;
+        return avg;
+      } else {
+        const st = (tasks || []).filter(t => t.station === profile?.station);
+        const si = (insumos || []).filter(i => i.station === profile?.station);
+        const res = calculateStationEfficiency(si, st);
+        return res?.score || 0;
+      }
+    } catch (err) {
+      console.error('Efficiency calc error:', err);
+      return 0;
     }
   }, [tasks, insumos, isManagement, profile]);
 
@@ -449,7 +476,12 @@ export default function Dashboard() {
         <EscalaHighlight schedule={mySchedule} onClick={() => setActiveTab('escala')} />
 
         {/* Quick Links */}
-        <QuickLinks setActiveTab={setActiveTab} pendingTasks={pendingTasks} alertCount={alerts.length} />
+        <QuickLinks 
+          setActiveTab={setActiveTab} 
+          pendingTasks={pendingTasks} 
+          alertCount={alerts.length} 
+          onWasteClick={() => setIsWasteModalOpen(true)}
+        />
 
         {/* Stats Row - PAX + Efficiency Donuts */}
         <StatsRow weekPax={paxStats.weekPax} monthPax={paxStats.monthPax} efficiency={efficiency} stationName={stationLabel} isManagement={isManagement} onClick={() => setActiveTab('insumos')} />
@@ -463,7 +495,7 @@ export default function Dashboard() {
              <div className="bg-surface-container-low/40 backdrop-blur-xl border border-outline-variant/10 rounded-[2rem] p-6 md:p-8">
                <div className="flex items-center gap-3 mb-6">
                  <div className="p-2.5 rounded-xl bg-error/10 border border-error/20">
-                   <Icons.AlertTriangle size={18} className="text-error" />
+                   <AlertTriangle size={18} className="text-error" />
                  </div>
                  <div>
                    <h4 className="text-sm font-black text-on-surface uppercase tracking-tight">Estoque em Alerta</h4>
@@ -471,18 +503,18 @@ export default function Dashboard() {
                  </div>
                </div>
                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
-                 {insumos.filter(i => i.quantity <= i.min_stock).sort((a, b) => a.quantity - b.quantity).slice(0, 5).map(i => (
+                 {(Array.isArray(insumos) ? insumos : []).filter(i => i && i.quantity <= (i.min_stock || 0)).sort((a, b) => a.quantity - b.quantity).slice(0, 5).map(i => (
                    <div key={i.id} onClick={() => setActiveTab('insumos')} className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-surface-container/40 transition-colors cursor-pointer group border border-transparent hover:border-outline-variant/10">
                      <div className="flex items-center gap-3">
                        <div className="w-2 h-2 rounded-full bg-error shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse" />
                        <div>
                          <span className="text-[11px] font-black text-on-surface uppercase tracking-tight">{i.name}</span>
-                         <p className="text-[8px] text-outline-variant uppercase font-bold tracking-widest">{i.station.replace('_', ' ')}</p>
+                         <p className="text-[8px] text-outline-variant uppercase font-bold tracking-widest">{(i.station || '').replace('_', ' ')}</p>
                        </div>
                      </div>
                      <div className="text-right flex items-center gap-2">
                        <span className="text-[10px] font-black text-error uppercase tracking-tight bg-error/10 px-2 py-0.5 rounded">{i.quantity} {i.unit}</span>
-                       <Icons.ChevronRight size={14} className="text-outline-variant/30 group-hover:text-primary transition-colors" />
+                       <ChevronRight size={14} className="text-outline-variant/30 group-hover:text-primary transition-colors" />
                      </div>
                    </div>
                  ))}
@@ -506,11 +538,13 @@ export default function Dashboard() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {alerts.map(a => (
-                <AlertCard key={a.id} icon={a.type === 'error' ? <Icons.AlertTriangle size={20} className="text-error" /> : <Icons.Clock size={20} className="text-secondary" />} title={a.title} desc={a.desc} footer={a.footer} borderColor={a.borderColor} onClick={() => a.tab && setActiveTab(a.tab)} />
+                <AlertCard key={a.id} icon={a.type === 'error' ? <AlertTriangle size={20} className="text-error" /> : <Clock size={20} className="text-secondary" />} title={a.title} desc={a.desc} footer={a.footer} borderColor={a.borderColor} onClick={() => a.tab && setActiveTab(a.tab)} />
               ))}
             </div>
           </section>
         )}
+
+        <WasteModal isOpen={isWasteModalOpen} onClose={() => setIsWasteModalOpen(false)} />
       </div>
     </PageLayout>
   );

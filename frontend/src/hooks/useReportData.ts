@@ -62,12 +62,20 @@ export function useReportData(period: ReportPeriod) {
         `);
       if (fichasError) throw fichasError;
 
+      // 6. Fetch Waste Logs
+      const { data: waste, error: wasteError } = await supabase
+        .from('waste_logs')
+        .select('*')
+        .gte('created_at', startDateStr);
+      if (wasteError) throw wasteError;
+
       return {
         tasks: tasks as Task[],
         insumos: insumos as Insumo[],
         pax: pax as any[],
         movements: movements as any[],
-        fichas: fichas as any[]
+        fichas: fichas as any[],
+        waste: waste as any[]
       };
     }
   });

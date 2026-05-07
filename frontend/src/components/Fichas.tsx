@@ -55,6 +55,7 @@ export default function Fichas() {
   const [tempoPreparo, setTempoPreparo] = useState(0);
   const [rendimento, setRendimento] = useState(1);
   const [imageUrl, setImageUrl] = useState('');
+  const [imageBase64, setImageBase64] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ModoPreparo | null>(null);
 
@@ -80,6 +81,7 @@ export default function Fichas() {
       setTempoPreparo(modo.tempo_preparo || 0);
       setRendimento(modo.rendimento || 1);
       setImageUrl(modo.image_url || '');
+      setImageBase64(modo.image_base64 || '');
     } else {
       setEditId(null);
       setNome('');
@@ -89,8 +91,24 @@ export default function Fichas() {
       setTempoPreparo(0);
       setRendimento(1);
       setImageUrl('');
+      setImageBase64('');
     }
     setIsModalOpen(true);
+  };
+  
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        showAlert('Arquivo muito grande', 'Por favor, selecione uma imagem de até 2MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageBase64(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSave = async () => {
@@ -106,7 +124,8 @@ export default function Fichas() {
         pracas: selectedPracas,
         tempo_preparo: tempoPreparo,
         rendimento,
-        image_url: imageUrl || undefined
+        image_url: imageUrl || undefined,
+        image_base64: imageBase64 || undefined
       });
       setIsModalOpen(false);
       showAlert('Sucesso', editId ? 'Preparo atualizado com sucesso!' : 'Novo preparo criado com sucesso!');
@@ -239,9 +258,9 @@ export default function Fichas() {
                {filteredModos.map(m => (
                  <button key={m.id} onClick={() => setActiveModo(m)} className="group relative bg-surface-container rounded-2xl border border-outline-variant/10 hover:border-primary/30 transition-all duration-500 hover:shadow-[0_8px_30px_-8px_rgba(0,180,216,0.2)] text-left overflow-hidden flex flex-col">
                    {/* Image Header */}
-                   {m.image_url && (
+                   {(m.image_base64 || m.image_url) && (
                      <div className="w-full h-36 bg-surface-container-highest overflow-hidden">
-                       <img src={m.image_url} alt={m.nome} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                       <img src={m.image_base64 || m.image_url} alt={m.nome} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                      </div>
                    )}
                    <div className="p-6 flex-1 flex flex-col">
@@ -287,9 +306,9 @@ export default function Fichas() {
             </div>
             <div className="flex-1 overflow-y-auto px-6 md:px-8 pb-32">
               {/* Image Banner */}
-              {activeModo.image_url && (
+              {(activeModo.image_base64 || activeModo.image_url) && (
                 <div className="w-full h-48 md:h-72 rounded-3xl overflow-hidden mb-10 border border-white/10">
-                  <img src={activeModo.image_url} alt={activeModo.nome} className="w-full h-full object-cover" />
+                  <img src={activeModo.image_base64 || activeModo.image_url} alt={activeModo.nome} className="w-full h-full object-cover" />
                 </div>
               )}
               <div className="mb-12">
@@ -358,8 +377,30 @@ export default function Fichas() {
                    </div>
                  </div>
                  <div>
-                   <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2 flex items-center gap-1.5"><ImageIcon size={12} /> Imagem (URL)</label>
-                   <input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://..." className="w-full bg-surface-container border border-outline-variant/20 rounded-xl px-4 py-4 text-sm text-on-surface outline-none focus:border-primary placeholder:text-outline-variant/30" />
+                   <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2 flex items-center gap-1.5"><ImageIcon size={12} /> Foto do Preparo</label>
+                   <div className="flex gap-2">
+                     <div className="flex-1 relative">
+                       <input 
+                         type="file" 
+                         accept="image/*" 
+                         onChange={handleImageUpload} 
+                         className="hidden" 
+                         id="file-upload-legacy" 
+                       />
+                       <label 
+                         htmlFor="file-upload-legacy"
+                         className="w-full flex items-center justify-between bg-surface-container border border-outline-variant/20 rounded-xl px-4 py-4 text-[10px] font-black text-outline-variant cursor-pointer hover:border-primary/40 transition-all"
+                       >
+                         <span>{imageBase64 ? 'ALTERAR FOTO' : 'ENVIAR FOTO'}</span>
+                         <ImageIcon size={14} />
+                       </label>
+                     </div>
+                     {(imageBase64 || imageUrl) && (
+                       <div className="w-12 h-12 rounded-xl overflow-hidden border border-outline-variant/20">
+                         <img src={imageBase64 || imageUrl} className="w-full h-full object-cover" alt="Preview" />
+                       </div>
+                     )}
+                   </div>
                  </div>
                </div>
 

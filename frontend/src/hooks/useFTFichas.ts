@@ -9,6 +9,9 @@ export interface FTFicha {
   modo_preparo: string;
   cmv_ideal: number;
   preco_venda: number;
+  praca_id?: string;
+  imagem_url?: string;
+  imagem_base64?: string;
   created_at: string;
   ingredientes?: FTFichaIngrediente[];
   complementos?: FTFichaComplemento;
@@ -65,6 +68,8 @@ export function useFTFichas() {
         ...f,
         complementos: f.ft_ficha_complementos?.[0] || null,
         ingredientes: f.ft_ficha_ingredientes?.map((i: any) => ({
+          id: i.id,
+          insumo_id: i.insumo_id,
           pb_gramas: i.pb_gramas,
           preco_unitario_base: i.insumo?.preco_unitario_base || 0,
           insumo_nome: i.insumo?.nome,

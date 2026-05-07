@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'error';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'error' | 'error-solid';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'xl' | 'icon';
 
 /**
@@ -70,6 +70,12 @@ export default function Button({
       gradient: 'from-red-500 via-red-400 to-red-500',
       inner: 'bg-surface-container-highest',
       text: 'text-red-400'
+    },
+    'error-solid': {
+      wrapper: 'shadow-[0_10px_20px_-5px_rgba(239,68,68,0.3)] hover:shadow-[0_15px_30px_-5px_rgba(239,68,68,0.5)]',
+      gradient: 'from-red-600 to-red-500',
+      inner: 'bg-red-600 group-hover:bg-red-500',
+      text: 'text-white'
     }
   };
 

@@ -24,6 +24,7 @@ export interface AlmoxMovimentacao {
   observacoes?: string;
   created_by?: string;
   created_at?: string;
+  ft_insumo_id?: string;
 }
 
 export interface LoteSaldo {
