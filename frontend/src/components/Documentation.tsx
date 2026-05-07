@@ -35,7 +35,11 @@ import {
   Settings,
   Lock,
   Globe,
-  Truck
+  Truck,
+  History,
+  Terminal,
+  Cpu,
+  Database
 } from 'lucide-react';
 import PageLayout from './shared/PageLayout';
 import PageHeader from './shared/PageHeader';
@@ -141,6 +145,7 @@ export default function Documentation() {
   const presentationRef = useRef<HTMLDivElement>(null);
   const employeeManualRef = useRef<HTMLDivElement>(null);
   const leaderManualRef = useRef<HTMLDivElement>(null);
+  const systemGuideRef = useRef<HTMLDivElement>(null);
 
   const generatePDF = async (containerRef: React.RefObject<HTMLDivElement>, filename: string) => {
     if (!containerRef.current) {
@@ -232,6 +237,13 @@ export default function Documentation() {
           icon={Briefcase}
           loading={generating === 'Manual_Gestao_Lideranca_Brigade_Noir'}
           onDownload={() => generatePDF(leaderManualRef, 'Manual_Gestao_Lideranca_Brigade_Noir')}
+        />
+        <DocumentCard 
+          title="Guia de Funcionalidades & Histórico"
+          description="Catálogo técnico completo de todos os módulos, integrações e histórico de versões do sistema. Essencial para auditoria técnica."
+          icon={Cpu}
+          loading={generating === 'Guia_Funcionalidades_Historico_Brigade_Noir'}
+          onDownload={() => generatePDF(systemGuideRef, 'Guia_Funcionalidades_Historico_Brigade_Noir')}
         />
       </div>
 
@@ -604,6 +616,158 @@ export default function Documentation() {
             </div>
             <div className="pt-10 border-t border-white/10 text-center">
               <p className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-600">Brigade Noir Strategic Intelligence Guide • 2026</p>
+            </div>
+          </PDFPage>
+        </div>
+
+        {/* SYSTEM GUIDE & VERSION HISTORY (6 PAGES) */}
+        <div ref={systemGuideRef} className="flex flex-col">
+          {/* Page 1: Cover */}
+          <PDFPage bgColor="bg-[#0c0c0c]" textColor="text-white">
+            <div className="h-full flex flex-col justify-between border-l-[16px] border-secondary pl-12">
+              <div>
+                <h1 className="text-7xl font-black uppercase tracking-tighter mb-4 leading-none">Guia de <br /> <span className="text-secondary">Sistema</span></h1>
+                <p className="text-xl font-bold uppercase tracking-[0.3em] text-gray-500 mb-20 text-gradient-primary">Funcionalidades & Versionamento</p>
+                <div className="w-24 h-24 bg-secondary rounded-3xl flex items-center justify-center text-[#0c0c0c] font-black text-5xl mb-12">V4</div>
+                <p className="text-2xl text-gray-400 max-w-md leading-relaxed font-medium">Documentação técnica completa das capacidades do Brigade Noir e rastreabilidade de atualizações.</p>
+              </div>
+              <div className="pb-10 border-t border-white/10 pt-10 flex justify-between items-center">
+                <p className="text-xs font-bold uppercase tracking-widest text-secondary">Documentação Técnica Oficial</p>
+                <Cpu size={32} className="text-secondary" />
+              </div>
+            </div>
+          </PDFPage>
+          {/* Page 2: Core Features - Ficha Técnica & Inventory */}
+          <PDFPage bgColor="bg-[#0c0c0c]" textColor="text-white">
+            <h3 className="text-3xl font-black uppercase text-secondary mb-10">01. Arquitetura de Dados</h3>
+            <div className="space-y-8">
+              <div className="p-8 bg-white/5 rounded-3xl border border-white/10">
+                <h4 className="text-white font-bold uppercase text-lg mb-4 flex items-center gap-3"><Database className="text-secondary" /> Ficha Técnica Avançada (RDC 429)</h4>
+                <ul className="text-xs text-gray-500 space-y-2">
+                  <li>• Motor de cálculo de custo real baseado em pesos líquidos e brutos.</li>
+                  <li>• Detecção automática de alérgenos e geração de tabela nutricional.</li>
+                  <li>• Gestão de rendimento (Yield) com fatores de correção dinâmicos.</li>
+                  <li>• Armazenamento binário de fotos de montagem (Base64) direto no DB.</li>
+                </ul>
+              </div>
+              <div className="p-8 bg-white/5 rounded-3xl border border-white/10">
+                <h4 className="text-white font-bold uppercase text-lg mb-4 flex items-center gap-3"><Warehouse className="text-secondary" /> Inteligência de Almoxarifado</h4>
+                <ul className="text-xs text-gray-500 space-y-2">
+                  <li>• Controle de estoque multi-praça (Saucier, Garde Manger, Confeitaria).</li>
+                  <li>• Histórico de movimentações (Entradas, Saídas, Quebras).</li>
+                  <li>• Cálculo automático de custo médio ponderado e avaliação de inventário.</li>
+                  <li>• Alertas de estoque crítico e sugestão de compras otimizada.</li>
+                </ul>
+              </div>
+            </div>
+          </PDFPage>
+          {/* Page 3: Operational & Management */}
+          <PDFPage bgColor="bg-[#0c0c0c]" textColor="text-white">
+            <h3 className="text-3xl font-black uppercase text-secondary mb-10">02. Fluxo Operacional & Gestão</h3>
+            <div className="space-y-8">
+              <div className="p-8 bg-white/5 rounded-3xl border border-white/10">
+                <h4 className="text-white font-bold uppercase text-lg mb-4 flex items-center gap-3"><Terminal className="text-secondary" /> Terminal Operacional da Brigada</h4>
+                <ul className="text-xs text-gray-500 space-y-2">
+                  <li>• Dashboard de serviço com contagem de porções em tempo real (86).</li>
+                  <li>• Visualização interativa de modos de preparo com fotos em alta definição.</li>
+                  <li>• Checklists digitais de abertura, fechamento e segurança alimentar.</li>
+                  <li>• Registro rápido de quebras por estação com justificativa técnica.</li>
+                </ul>
+              </div>
+              <div className="p-8 bg-white/5 rounded-3xl border border-white/10">
+                <h4 className="text-white font-bold uppercase text-lg mb-4 flex items-center gap-3"><BarChart className="text-secondary" /> Business Intelligence (BI)</h4>
+                <ul className="text-xs text-gray-500 space-y-2">
+                  <li>• Relatórios executivos de CMV Real vs Teórico.</li>
+                  <li>• Curva ABC de vendas integrada ao consumo de insumos.</li>
+                  <li>• Auditoria de desperdício por período, motivo e responsável.</li>
+                  <li>• Projeção de ROI baseada em otimização de quebras.</li>
+                </ul>
+              </div>
+            </div>
+          </PDFPage>
+          {/* Page 4: Human Resources & Support */}
+          <PDFPage bgColor="bg-[#0c0c0c]" textColor="text-white">
+            <h3 className="text-3xl font-black uppercase text-secondary mb-10">03. Capital Humano & Suporte</h3>
+            <div className="space-y-8">
+              <div className="p-8 bg-white/5 rounded-3xl border border-white/10">
+                <h4 className="text-white font-bold uppercase text-lg mb-4 flex items-center gap-3"><Calendar className="text-secondary" /> Gestão de Escalas & Pessoas</h4>
+                <ul className="text-xs text-gray-500 space-y-2">
+                  <li>• Planejamento de turnos com visualização mensal e semanal.</li>
+                  <li>• Perfis de acesso customizados por cargo (Chef, Gerente, Cozinheiro).</li>
+                  <li>• Registro de competências e treinamento por praça.</li>
+                </ul>
+              </div>
+              <div className="p-8 bg-white/5 rounded-3xl border border-white/10">
+                <h4 className="text-white font-bold uppercase text-lg mb-4 flex items-center gap-3"><Zap className="text-secondary" /> Automações & Notificações</h4>
+                <ul className="text-xs text-gray-500 space-y-2">
+                  <li>• Sistema de notificações em tempo real para estoque crítico e porções 86.</li>
+                  <li>• Motor de exportação de manuais e relatórios em PDF profissional.</li>
+                  <li>• Sincronização offline com cache local para áreas de baixa conectividade.</li>
+                </ul>
+              </div>
+            </div>
+          </PDFPage>
+          {/* Page 5: Full Feature Checklist */}
+          <PDFPage bgColor="bg-[#0c0c0c]" textColor="text-white">
+            <h3 className="text-3xl font-black uppercase text-secondary mb-10">04. Checklist de Funcionalidades</h3>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-[10px] text-gray-400">
+              {[
+                "Login Seguro & Gestão de Perfil",
+                "Dashboard Executivo de BI",
+                "Editor de Ficha Técnica Visual",
+                "Cálculo Nutricional RDC 429/2020",
+                "Detecção Automática de Alérgenos",
+                "Gestão de Insumos & Almoxarifado",
+                "Controle de Movimentações (Entrada/Saída)",
+                "Registro de Quebras & Desperdício",
+                "Módulo de Modo de Preparo Interativo",
+                "Contagem de Porções em Tempo Real",
+                "Escala de Trabalho Mensal/Semanal",
+                "Central de Documentação & Manuais",
+                "Relatórios Financeiros de CMV",
+                "Gerador de PDF de Alta Qualidade",
+                "Notificações de Liderança (Push/In-app)",
+                "Integração de Praças Técnicas",
+                "Backup de Imagens em Base64 (Local DB)",
+                "Filtros Globais de Busca Inteligente"
+              ].map((f, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <CheckCircle2 size={12} className="text-secondary" />
+                  <span className="uppercase font-bold tracking-tight">{f}</span>
+                </div>
+              ))}
+            </div>
+          </PDFPage>
+          {/* Page 6: Version History */}
+          <PDFPage bgColor="bg-[#0c0c0c]" textColor="text-white">
+            <h3 className="text-3xl font-black uppercase text-secondary mb-10 flex items-center gap-4">
+              <History size={32} /> Histórico de Versões
+            </h3>
+            <div className="space-y-6">
+              <div className="border-l-4 border-secondary pl-6 relative">
+                <div className="absolute -left-[10px] top-0 w-4 h-4 rounded-full bg-secondary"></div>
+                <h4 className="text-white font-black text-sm uppercase tracking-widest">v4.2.0 - Autonomia Operacional</h4>
+                <p className="text-[10px] text-secondary font-bold mb-2">MAIO 2026</p>
+                <p className="text-[11px] text-gray-500 italic">"Migração completa para armazenamento Base64. Integração total entre Menu Principal, Fichas Técnicas e Modo de Preparo com navegação por contexto."</p>
+              </div>
+              <div className="border-l-4 border-gray-800 pl-6 relative opacity-60">
+                <h4 className="text-white font-black text-sm uppercase tracking-widest">v4.1.0 - Inteligência de Almoxarifado</h4>
+                <p className="text-[10px] text-gray-600 font-bold mb-2">ABRIL 2026</p>
+                <p className="text-[11px] text-gray-700 italic">"Lançamento do módulo de quebras e desperdício. Auditoria de CMV real baseada em movimentações de estoque."</p>
+              </div>
+              <div className="border-l-4 border-gray-800 pl-6 relative opacity-40">
+                <h4 className="text-white font-black text-sm uppercase tracking-widest">v4.0.0 - Brigade Noir Engine</h4>
+                <p className="text-[10px] text-gray-600 font-bold mb-2">MARÇO 2026</p>
+                <p className="text-[11px] text-gray-700 italic">"Refatoração completa do motor de Ficha Técnica para conformidade RDC 429/2020 e nova UI Premium Glassmorphic."</p>
+              </div>
+              <div className="border-l-4 border-gray-800 pl-6 relative opacity-20">
+                <h4 className="text-white font-black text-sm uppercase tracking-widest">v3.5.0 - Legacy Integration</h4>
+                <p className="text-[10px] text-gray-600 font-bold mb-2">FEVEREIRO 2026</p>
+                <p className="text-[11px] text-gray-700 italic">"Implementação inicial de escalas e gerenciamento de brigada básica."</p>
+              </div>
+            </div>
+            <div className="mt-auto pt-10 border-t border-white/10 text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-600">Fim da Documentação Técnica • Brigade Noir</p>
             </div>
           </PDFPage>
         </div>
