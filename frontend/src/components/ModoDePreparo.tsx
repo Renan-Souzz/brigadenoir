@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useFTFichas, FTFicha } from '../hooks/useFTFichas';
 import { useInsumos } from '../hooks/useInsumos';
+import { useNavigation } from '../contexts/NavigationContext';
 import PageLayout from './shared/PageLayout';
 import Button from './shared/Button';
 
@@ -81,16 +82,36 @@ function PrepStep({ step, title, desc }: { step: string, title: string, desc: st
 
 export default function ModoDePreparo() {
   const { profile } = useAuth();
-  const { fichas, isLoading: fichasLoading } = useFTFichas();
+  const { fichas, isLoading: fichasLoading, getFicha } = useFTFichas();
   const { insumos, isLoading: insumosLoading } = useInsumos();
+  const { searchFilter } = useNavigation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeFicha, setActiveFicha] = useState<FTFicha | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   const stationName = profile?.station || 'almoxarifado';
   
-  // Filter fichas by station
-  const stationFichas = fichas.filter(f => f.praca_id === stationName);
+  // Filter fichas by station and search filter
+  const stationFichas = fichas.filter(f => {
+    const matchesStation = f.praca_id === stationName;
+    const matchesSearch = !searchFilter || f.nome.toLowerCase().includes(searchFilter.toLowerCase());
+    return matchesStation && matchesSearch;
+  });
   
-  const activeFicha = stationFichas.find(f => f.id === selectedId) || stationFichas[0];
+  // Effect to load detail when selectedId changes
+  useEffect(() => {
+    const targetId = selectedId || (stationFichas.length > 0 ? stationFichas[0].id : null);
+    if (!targetId) {
+        setActiveFicha(null);
+        return;
+    }
+
+    setLoadingDetail(true);
+    getFicha(targetId)
+      .then(setActiveFicha)
+      .catch(console.error)
+      .finally(() => setLoadingDetail(false));
+  }, [selectedId, stationFichas.length, getFicha]);
 
   // Capacity calculation logic
   const calculateCapacity = (ficha: FTFicha) => {
@@ -165,7 +186,11 @@ export default function ModoDePreparo() {
         </section>
 
         {/* Right: Detailed View */}
-        {activeFicha ? (
+        {loadingDetail ? (
+           <section className="lg:col-span-8 bg-surface-container-high rounded-3xl p-12 border border-outline-variant/10 flex items-center justify-center min-h-[60vh]">
+             <Loader2 className="animate-spin text-primary" size={40} />
+           </section>
+        ) : activeFicha ? (
           <section className="lg:col-span-8 bg-surface-container-high rounded-3xl overflow-hidden shadow-2xl border border-outline-variant/10">
             <div className="h-64 md:h-80 relative overflow-hidden bg-black">
               {(activeFicha.imagem_base64 || activeFicha.imagem_url) ? (

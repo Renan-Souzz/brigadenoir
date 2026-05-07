@@ -17,18 +17,31 @@ export interface Dish {
 export function useDishes() {
   const queryClient = useQueryClient();
 
+  // Optimized query: Fetches only metadata to keep the list lightweight
   const query = useQuery({
     queryKey: ['dishes'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('dishes')
-        .select('*')
+        .select('id, title, description, category, praca_responsavel, porcoes, image_url, created_at')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data as Dish[];
     },
   });
+
+  // Helper to fetch full dish data including the heavy Base64 image
+  const getDishDetail = async (id: string) => {
+    const { data, error } = await supabase
+      .from('dishes')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return data as Dish;
+  };
 
   const upsertDish = useMutation({
     mutationFn: async (dish: Partial<Dish>) => {
@@ -94,6 +107,7 @@ export function useDishes() {
     ...query,
     upsertDish: upsertDish.mutateAsync,
     deleteDish: deleteDish.mutateAsync,
-    updatePorcao: updatePorcao.mutateAsync
+    updatePorcao: updatePorcao.mutateAsync,
+    getDishDetail
   };
 }

@@ -52,8 +52,8 @@ export function useFTFichas() {
       const { data, error } = await supabase
         .from('ft_fichas')
         .select(`
-          *,
-          ft_ficha_complementos(*),
+          id, nome, categoria, rendimento_total, cmv_ideal, preco_venda, praca_id, imagem_url, created_at,
+          ft_ficha_complementos(validade_dias, conservacao, contem_gluten, contem_lactose, observacoes),
           ft_ficha_ingredientes(
             pb_gramas,
             insumo:ft_insumos(nome, preco_unitario_base, acucares_adicionados_g, sodio_mg, gordura_saturada_g, is_liquid)

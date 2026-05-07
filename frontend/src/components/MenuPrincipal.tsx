@@ -36,6 +36,61 @@ import { calcularResumoFicha, verificarAlertasAnvisa, detectarAlergenos } from '
 
 const CATEGORIAS = ['Entrada', 'Prato Principal', 'Sobremesa'];
 
+// ─── Sub-Components ──────────────────────────────────────────────────────────
+const DishImage = ({ 
+  dishId, 
+  initialUrl, 
+  getDetail 
+}: { 
+  dishId: string, 
+  initialUrl?: string, 
+  getDetail: (id: string) => Promise<Dish> 
+}) => {
+  const [image, setImage] = useState<string | null>(initialUrl || null);
+  const [loading, setLoading] = useState(!initialUrl);
+  const [error, setError] = useState(false);
+  const observerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (image) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setLoading(true);
+        getDetail(dishId)
+          .then(data => {
+            setImage(data.image_base64 || data.image_url || null);
+            setLoading(false);
+          })
+          .catch(() => {
+            setError(true);
+            setLoading(false);
+          });
+        observer.disconnect();
+      }
+    }, { threshold: 0.1 });
+
+    if (observerRef.current) observer.observe(observerRef.current);
+    return () => observer.disconnect();
+  }, [dishId, getDetail, image]);
+
+  return (
+    <div ref={observerRef} className="w-full h-full flex items-center justify-center bg-surface-container-highest relative">
+      {loading && <div className="absolute inset-0 flex items-center justify-center bg-surface-container-highest z-10"><Loader2 className="animate-spin text-primary/20" size={24} /></div>}
+      {image ? (
+        <img 
+          src={image} 
+          alt="Dish" 
+          className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${loading ? 'opacity-0' : 'opacity-100'}`} 
+          onLoad={() => setLoading(false)}
+        />
+      ) : (
+        <UtensilsCrossed size={40} className="opacity-20 text-outline-variant" />
+      )}
+    </div>
+  );
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function MenuPrincipal() {
@@ -48,6 +103,7 @@ export default function MenuPrincipal() {
     upsertDish, 
     deleteDish, 
     updatePorcao,
+    getDishDetail,
     refetch 
   } = useDishes();
 
@@ -153,8 +209,17 @@ export default function MenuPrincipal() {
       setDescription(dish.description || '');
       setCategory(dish.category);
       setPracaResponsavel(dish.praca_responsavel || 'saucier');
-      setImagePreview(dish.image_base64 || dish.image_url || null);
-      setImageBase64(dish.image_base64 || '');
+      
+      // Fetch full detail for the modal if we don't have the image yet
+      if (!dish.image_base64) {
+        getDishDetail(dish.id).then(fullDish => {
+          setImagePreview(fullDish.image_base64 || fullDish.image_url || null);
+          setImageBase64(fullDish.image_base64 || '');
+        });
+      } else {
+        setImagePreview(dish.image_base64 || dish.image_url || null);
+        setImageBase64(dish.image_base64 || '');
+      }
       setImageFile(null);
     } else {
       setEditDish(null);
@@ -330,7 +395,11 @@ export default function MenuPrincipal() {
                     return (
                       <div key={dish.id} className={`group rounded-2xl border overflow-hidden transition-all duration-500 hover:shadow-2xl ${isCritical && canEdit ? 'bg-error/5 border-red-500/60 shadow-[0_0_30px_-5px_rgba(239,68,68,0.3)] ring-1 ring-red-500/50' : 'bg-surface-container border-outline-variant/10'}`}>
                         <div className="relative w-full h-48 bg-surface-container-highest overflow-hidden">
-                          {(dish.image_base64 || dish.image_url) ? <img src={dish.image_base64 || dish.image_url} alt={dish.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" /> : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed size={40} className="opacity-20 text-outline-variant" /></div>}
+                          <DishImage 
+                            dishId={dish.id} 
+                            initialUrl={dish.image_url} 
+                            getDetail={getDishDetail} 
+                          />
                           <div className={`absolute top-3 right-3 px-3 py-1.5 rounded-lg backdrop-blur-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${isCritical ? 'bg-red-500 text-white animate-pulse' : isLow ? 'bg-red-500/80 text-white animate-pulse' : 'bg-black/60 text-white'}`}>
                             {(isLow || isCritical) && canEdit && <AlertTriangle size={12} />} {dish.porcoes} {dish.porcoes === 1 ? 'porção' : 'porções'}
                           </div>
