@@ -259,12 +259,17 @@ export default function InsumosTecnicos() {
     }
   };
   const handleDeleteAll = async () => {
-    if (confirm('Tem certeza que deseja excluir TODOS os insumos técnicos? Esta ação não pode ser desfeita.')) {
+    const confirmed = await showConfirm(
+      'EXCLUSÃO TOTAL',
+      'Tem certeza que deseja excluir TODOS os insumos técnicos? Esta ação não pode ser desfeita e afetará todas as fichas técnicas.'
+    );
+    
+    if (confirmed) {
       try {
         await deleteAllInsumos();
-        showAlert('Sucesso', 'Todos os insumos foram excluídos.');
+        showAlert('Sucesso', 'Todos os insumos foram removidos da base técnica.');
       } catch (err: any) {
-        showAlert('Erro', 'Falha ao excluir insumos: ' + err.message);
+        showAlert('Erro', 'Falha ao processar exclusão: ' + err.message);
       }
     }
   };
