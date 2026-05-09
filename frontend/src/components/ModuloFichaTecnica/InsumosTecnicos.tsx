@@ -132,87 +132,118 @@ export default function InsumosTecnicos() {
       reader.onload = async (evt) => {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws);
-
+        
         let successCount = 0;
         let errorCount = 0;
 
-        for (const rawRow of data as any[]) {
-          try {
-            // Normaliza TODAS as chaves: remove acentos, lowercase, trim
-            const row: Record<string, any> = {};
-            for (const [key, val] of Object.entries(rawRow)) {
-              const normalizedKey = key
-                .toLowerCase()
-                .trim()
-                .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
-                .replace(/[^a-z0-9]/g, ''); // remove espaços e caracteres especiais
-              row[normalizedKey] = val;
-            }
+        // Itera por TODAS as abas da planilha
+        for (const sheetName of wb.SheetNames) {
+          const ws = wb.Sheets[sheetName];
+          // Converte para matriz (array de arrays) para achar o cabeçalho dinamicamente
+          const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+          
+          let headerRowIndex = -1;
+          let colMapping: Record<string, number> = {};
 
-            // Nome do insumo: ingrediente | nome
-            const nomeInsumo = (
-              row.ingrediente || row.nome || row.insumo || row.produto || row.item || ''
-            ).toString().trim();
-            if (!nomeInsumo) continue;
-
-            // Custo: custo | preco | precocompra | valor
-            const custoRaw = (
-              row.custo ?? row.preco ?? row.precocompra ?? row.valor ?? row.price ?? 0
+          // Busca a linha que contém os cabeçalhos (procurando por "ingrediente")
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || !Array.isArray(row)) continue;
+            
+            const normalizedRow = row.map(cell => 
+              (cell || '').toString().toLowerCase().trim()
+              .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+              .replace(/[^a-z0-9]/g, '')
             );
-            const precoCompra = parseFloat(custoRaw.toString().replace(',', '.')) || 0;
 
-            // Medida: medida | unidade | und | un
-            const medidaRaw = (
-              row.medida || row.unidade || row.und || row.un || row.unit || 'kg'
-            ).toString().trim();
-
-            // Extrai quantidade e unidade do campo "medida" (ex: "1 KG" → qty=1, unit=kg)
-            const medidaMatch = medidaRaw.match(/^(\d+[\.,]?\d*)\s*(kg|g|ml|l|un|litro|litros|quilo|quilos|grama|gramas|unidade|unidades)$/i);
-            let qtyCompra: number;
-            let unidCompra: string;
-
-            if (medidaMatch) {
-              qtyCompra = parseFloat(medidaMatch[1].replace(',', '.')) || 1;
-              unidCompra = medidaMatch[2].toLowerCase();
-            } else {
-              qtyCompra = parseFloat(row.quantidade || row.qtde || row.qty || 1);
-              unidCompra = medidaRaw.toLowerCase().replace(/[^a-z]/g, '');
+            if (normalizedRow.includes('ingrediente')) {
+              headerRowIndex = i;
+              // Mapeia qual coluna é cada coisa
+              normalizedRow.forEach((val, idx) => {
+                if (val === 'ingrediente' || val === 'item' || val === 'nome') colMapping.nome = idx;
+                if (val === 'medida' || val === 'unidade' || val === 'und') colMapping.medida = idx;
+                if (val === 'custo' || val === 'preco' || val === 'valor') colMapping.custo = idx;
+                if (val === 'quantidade' || val === 'qtde' || val === 'qty') colMapping.quantidade = idx;
+                if (val === 'liquido') colMapping.liquido = idx;
+              });
+              break;
             }
+          }
 
-            // Normaliza nomes longos de unidade
-            if (unidCompra === 'litro' || unidCompra === 'litros') unidCompra = 'l';
-            if (unidCompra === 'quilo' || unidCompra === 'quilos') unidCompra = 'kg';
-            if (unidCompra === 'grama' || unidCompra === 'gramas') unidCompra = 'g';
-            if (unidCompra === 'unidade' || unidCompra === 'unidades') unidCompra = 'un';
-            if (!['kg', 'g', 'ml', 'l', 'un'].includes(unidCompra)) unidCompra = 'kg';
+          // Se não achou cabeçalho nesta aba, pula para a próxima
+          if (headerRowIndex === -1 || colMapping.nome === undefined) continue;
 
-            const isLiq = unidCompra === 'ml' || unidCompra === 'l' ||
-              ['s', 'sim', 'y', 'yes'].includes((row.liquido || 'n').toString().toLowerCase().trim());
+          // Processa as linhas de dados (abaixo do cabeçalho)
+          for (let i = headerRowIndex + 1; i < rows.length; i++) {
+            const row = rows[i];
+            try {
+              const nomeRaw = row[colMapping.nome];
+              if (!nomeRaw) continue;
 
-            const unidadeBase = deriveBase(unidCompra);
-            const volumeBase = converterParaBase(qtyCompra, unidCompra);
-            const precoUnitarioBase = volumeBase > 0 ? precoCompra / volumeBase : 0;
+              const nomeInsumo = nomeRaw.toString().trim();
+              const custoRaw = row[colMapping.custo] ?? 0;
+              const precoCompra = typeof custoRaw === 'number' ? custoRaw : parseFloat(custoRaw.toString().replace(',', '.')) || 0;
 
-            await createInsumo({
-              nome: nomeInsumo.toUpperCase(),
-              unidade_base: unidadeBase,
-              preco_compra: precoCompra,
-              quantidade_compra: qtyCompra,
-              unidade_compra: unidCompra,
-              preco_unitario_base: precoUnitarioBase,
-              is_liquid: isLiq,
-              acucares_adicionados_g: 0,
-              sodio_mg: 0,
-              gordura_saturada_g: 0,
-              alergenicos: []
-            });
-            successCount++;
-          } catch (err) {
-            errorCount++;
+              const medidaRaw = (row[colMapping.medida] ?? 'kg').toString().trim();
+              
+              // Tenta extrair quantidade e unidade do campo "medida"
+              const medidaMatch = medidaRaw.match(/^(\d+[\.,]?\d*)\s*(kg|g|ml|l|un|litro|litros|quilo|quilos|grama|gramas|unidade|unidades)$/i);
+              let qtyCompra: number;
+              let unidCompra: string;
 
+              if (medidaMatch) {
+                qtyCompra = parseFloat(medidaMatch[1].replace(',', '.')) || 1;
+                unidCompra = medidaMatch[2].toLowerCase();
+              } else {
+                // Se o campo for apenas um número (ex: 0,05)
+                const plainNumber = parseFloat(medidaRaw.replace(',', '.'));
+                if (!isNaN(plainNumber)) {
+                  qtyCompra = plainNumber;
+                  // Tenta pegar unidade de outra coluna ou assume kg/un
+                  unidCompra = 'kg'; 
+                } else {
+                  qtyCompra = 1;
+                  unidCompra = medidaRaw.toLowerCase().replace(/[^a-z]/g, '') || 'kg';
+                }
+              }
+
+              // Se houver coluna de quantidade explícita, ela manda
+              if (colMapping.quantidade !== undefined && row[colMapping.quantidade]) {
+                const q = parseFloat(row[colMapping.quantidade].toString().replace(',', '.'));
+                if (!isNaN(q)) qtyCompra = q;
+              }
+
+              // Normaliza unidades
+              if (unidCompra === 'litro' || unidCompra === 'litros') unidCompra = 'l';
+              if (unidCompra === 'quilo' || unidCompra === 'quilos') unidCompra = 'kg';
+              if (unidCompra === 'grama' || unidCompra === 'gramas') unidCompra = 'g';
+              if (unidCompra === 'unidade' || unidCompra === 'unidades') unidCompra = 'un';
+              if (!['kg', 'g', 'ml', 'l', 'un'].includes(unidCompra)) unidCompra = 'kg';
+
+              const isLiq = unidCompra === 'ml' || unidCompra === 'l' ||
+                (colMapping.liquido !== undefined && ['s', 'sim', 'y', 'yes'].includes((row[colMapping.liquido] || 'n').toString().toLowerCase().trim()));
+
+              const unidadeBase = deriveBase(unidCompra);
+              const volumeBase = converterParaBase(qtyCompra, unidCompra);
+              const precoUnitarioBase = volumeBase > 0 ? precoCompra / volumeBase : 0;
+
+              await createInsumo({
+                nome: nomeInsumo.toUpperCase(),
+                unidade_base: unidadeBase,
+                preco_compra: precoCompra,
+                quantidade_compra: qtyCompra,
+                unidade_compra: unidCompra,
+                preco_unitario_base: precoUnitarioBase,
+                is_liquid: isLiq,
+                acucares_adicionados_g: 0,
+                sodio_mg: 0,
+                gordura_saturada_g: 0,
+                alergenicos: []
+              });
+              successCount++;
+            } catch (err) {
+              errorCount++;
+            }
           }
         }
 
