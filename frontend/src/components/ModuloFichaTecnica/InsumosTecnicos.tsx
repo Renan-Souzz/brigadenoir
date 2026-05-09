@@ -125,160 +125,182 @@ export default function InsumosTecnicos() {
     if (!file) return;
 
     setIsImporting(true);
+
     try {
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-        const data = evt.target?.result;
-        if (!data) return;
+      const isCSV = file.name.toLowerCase().endsWith('.csv');
+      const buffer = await file.arrayBuffer();
 
-        // bookVBA:false evita parsing de macros, raw:false preserva formatação de células
-        const wb = XLSX.read(data, { type: 'array', bookVBA: false, cellText: true, cellNF: true });
-        
-        let successCount = 0;
-        let errorCount = 0;
+      let wb: any;
 
-        // Lê o valor formatado (texto) da célula em vez do valor bruto numérico
-        // Isso preserva separadores decimais brasileiros (vírgula) como o usuário digitou
-        const getCellText = (ws: any, row: number, col: number): string => {
-          const cellAddr = XLSX.utils.encode_cell({ r: row, c: col });
-          const cell = ws[cellAddr];
-          if (!cell) return '';
-          // Preferência: texto formatado > valor bruto
-          if (cell.w) return cell.w; // w = formatted text (ex: "7,90")
-          if (cell.v !== undefined) return cell.v.toString();
-          return '';
-        };
+      if (isCSV) {
+        // CSV: decodifica o texto com encoding correto antes de passar para o xlsx
+        // Excel brasileiro salva CSV em Windows-1252, não UTF-8
+        let text: string;
+        try {
+          // Tenta UTF-8 primeiro (falha se tiver caracteres inválidos)
+          text = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+        } catch {
+          // Fallback para Windows-1252 (encoding padrão do Excel BR)
+          text = new TextDecoder('windows-1252').decode(buffer);
+        }
+        wb = XLSX.read(text, { type: 'string' });
+      } else {
+        // Excel (.xlsx, .xlsm): lê com raw:false para pegar o texto formatado das células
+        wb = XLSX.read(buffer, { type: 'array', raw: false, cellText: true, cellNF: true });
+      }
 
-        const parseNumber = (val: any): number => {
-          if (!val && val !== 0) return 0;
-          if (typeof val === 'number') return val;
-          const s = val.toString().trim()
-            // Remove símbolos de moeda e espaços
-            .replace(/R\$\s*/g, '')
-            .replace(/\s/g, '');
-          // Formato BR com milhar: 1.234,56
-          if (s.includes(',') && s.includes('.')) {
-            return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
-          }
-          // Só vírgula decimal: 7,90
-          if (s.includes(',')) {
-            return parseFloat(s.replace(',', '.')) || 0;
-          }
-          return parseFloat(s) || 0;
-        };
+      let successCount = 0;
+      let errorCount = 0;
 
-        for (const sheetName of wb.SheetNames) {
-          const ws = wb.Sheets[sheetName];
-          // Lê como array de arrays usando o texto formatado das células (cell.w)
-          const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false }) as string[][];
-          
-          let headerRowIndex = -1;
-          let colMapping: Record<string, number> = {};
+      // Para Excel: lê o texto formatado da célula (preserva "7,90" em vez de retornar 790)
+      const getCellText = (ws: any, row: number, col: number): string => {
+        if (col < 0) return '';
+        const cellAddr = XLSX.utils.encode_cell({ r: row, c: col });
+        const cell = ws[cellAddr];
+        if (!cell) return '';
+        if (cell.w) return cell.w;
+        if (cell.v !== undefined) return cell.v.toString();
+        return '';
+      };
 
-          for (let i = 0; i < rawRows.length; i++) {
-            const row = rawRows[i];
-            if (!row || !Array.isArray(row)) continue;
-            
-            const normalizedRow = row.map(cell => 
-              (cell || '').toString().toLowerCase().trim()
-              .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-              .replace(/[^a-z0-9]/g, '')
-            );
+      // Parser de número que entende formatos BR (7,90) e EN (7.90) e milhar (1.234,56)
+      const parseNumber = (val: any): number => {
+        if (!val && val !== 0) return 0;
+        if (typeof val === 'number') return val;
+        const s = val.toString().trim()
+          .replace(/R\$\s*/g, '')  // remove símbolo de moeda
+          .replace(/\s/g, '');     // remove espaços
+        // Formato BR com milhar: 1.234,56
+        if (s.includes(',') && s.includes('.')) {
+          return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+        }
+        // Só vírgula (decimal BR): 7,90
+        if (s.includes(',')) {
+          return parseFloat(s.replace(',', '.')) || 0;
+        }
+        return parseFloat(s) || 0;
+      };
 
-            if (normalizedRow.includes('ingrediente')) {
-              headerRowIndex = i;
-              normalizedRow.forEach((val, idx) => {
-                if (val === 'ingrediente' || val === 'item' || val === 'nome') colMapping.nome = idx;
-                if (val === 'medida' || val === 'unidade' || val === 'und') colMapping.medida = idx;
-                if (val === 'custo' || val === 'preco' || val === 'valor') colMapping.custo = idx;
-                if (val === 'quantidade' || val === 'qtde' || val === 'qty') colMapping.quantidade = idx;
-                if (val === 'liquido') colMapping.liquido = idx;
-              });
-              break;
-            }
-          }
+      for (const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName];
+        // raw:false → retorna o texto formatado da célula (como aparece no Excel/CSV)
+        const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false }) as string[][];
 
-          if (headerRowIndex === -1 || colMapping.nome === undefined) continue;
+        let headerRowIndex = -1;
+        let colMapping: Record<string, number> = {};
 
-          for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
-            const row = rawRows[i];
-            try {
-              const nomeRaw = row[colMapping.nome];
-              if (!nomeRaw) continue;
+        for (let i = 0; i < rawRows.length; i++) {
+          const row = rawRows[i];
+          if (!row || !Array.isArray(row)) continue;
 
-              const nomeInsumo = nomeRaw.toString().trim();
-              // Usa getCellText para pegar o valor formatado da célula de custo (ex: "7,90" em vez de 790)
-              const custoText = getCellText(ws, i, colMapping.custo ?? -1);
-              const precoCompra = parseNumber(custoText || row[colMapping.custo]);
+          const normalizedRow = row.map(cell =>
+            (cell || '').toString().toLowerCase().trim()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]/g, '')
+          );
 
-              const medidaRaw = (row[colMapping.medida] ?? 'kg').toString().trim();
-              
-              const medidaMatch = medidaRaw.match(/^(\d+[\.,]?\d*)\s*(kg|g|ml|l|un|litro|litros|quilo|quilos|grama|gramas|unidade|unidades)$/i);
-              let qtyCompra: number;
-              let unidCompra: string;
-
-              if (medidaMatch) {
-                qtyCompra = parseNumber(medidaMatch[1]);
-                unidCompra = medidaMatch[2].toLowerCase();
-              } else {
-                const plainNumber = parseNumber(medidaRaw);
-                if (plainNumber > 0) {
-                  qtyCompra = plainNumber;
-                  unidCompra = 'kg'; 
-                } else {
-                  qtyCompra = 1;
-                  unidCompra = medidaRaw.toLowerCase().replace(/[^a-z]/g, '') || 'kg';
-                }
-              }
-
-              if (colMapping.quantidade !== undefined && row[colMapping.quantidade]) {
-                const q = parseNumber(row[colMapping.quantidade]);
-                if (q > 0) qtyCompra = q;
-              }
-
-              if (unidCompra === 'litro' || unidCompra === 'litros') unidCompra = 'l';
-              if (unidCompra === 'quilo' || unidCompra === 'quilos') unidCompra = 'kg';
-              if (unidCompra === 'grama' || unidCompra === 'gramas') unidCompra = 'g';
-              if (unidCompra === 'unidade' || unidCompra === 'unidades') unidCompra = 'un';
-              if (!['kg', 'g', 'ml', 'l', 'un'].includes(unidCompra)) unidCompra = 'kg';
-
-              const isLiq = unidCompra === 'ml' || unidCompra === 'l' ||
-                (colMapping.liquido !== undefined && ['s', 'sim', 'y', 'yes'].includes((row[colMapping.liquido] || 'n').toString().toLowerCase().trim()));
-
-              const unidadeBase = deriveBase(unidCompra);
-              const volumeBase = converterParaBase(qtyCompra, unidCompra);
-              const precoUnitarioBase = volumeBase > 0 ? precoCompra / volumeBase : 0;
-
-              await createInsumo({
-                nome: nomeInsumo.toUpperCase(),
-                unidade_base: unidadeBase,
-                preco_compra: precoCompra,
-                quantidade_compra: qtyCompra,
-                unidade_compra: unidCompra,
-                preco_unitario_base: precoUnitarioBase,
-                is_liquid: isLiq,
-                acucares_adicionados_g: 0,
-                sodio_mg: 0,
-                gordura_saturada_g: 0,
-                alergenicos: []
-              });
-              successCount++;
-            } catch (err) {
-              errorCount++;
-            }
+          if (normalizedRow.includes('ingrediente')) {
+            headerRowIndex = i;
+            normalizedRow.forEach((val, idx) => {
+              if (val === 'ingrediente' || val === 'item' || val === 'nome') colMapping.nome = idx;
+              if (val === 'medida' || val === 'unidade' || val === 'und') colMapping.medida = idx;
+              if (val === 'custo' || val === 'preco' || val === 'valor') colMapping.custo = idx;
+              if (val === 'quantidade' || val === 'qtde' || val === 'qty') colMapping.quantidade = idx;
+              if (val === 'liquido') colMapping.liquido = idx;
+            });
+            break;
           }
         }
 
-        showAlert('Importação Concluída', `${successCount} insumos importados com sucesso.${errorCount > 0 ? ` ${errorCount} falhas.` : ''}`);
-        setIsImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      };
-      reader.readAsArrayBuffer(file);
+        if (headerRowIndex === -1 || colMapping.nome === undefined) continue;
+
+        for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
+          const row = rawRows[i];
+          try {
+            const nomeRaw = row[colMapping.nome];
+            if (!nomeRaw || !nomeRaw.toString().trim()) continue;
+
+            const nomeInsumo = nomeRaw.toString().trim();
+
+            // Para Excel: usa getCellText para pegar o valor formatado da célula
+            // Para CSV: o valor já vem como texto correto via TextDecoder
+            const custoRaw = isCSV
+              ? row[colMapping.custo]
+              : (getCellText(ws, i, colMapping.custo ?? -1) || row[colMapping.custo]);
+            const precoCompra = parseNumber(custoRaw);
+
+            const medidaRaw = (row[colMapping.medida] ?? 'kg').toString().trim();
+
+            const medidaMatch = medidaRaw.match(/^(\d+[\.,]?\d*)\s*(kg|g|ml|l|un|litro|litros|quilo|quilos|grama|gramas|unidade|unidades)$/i);
+            let qtyCompra: number;
+            let unidCompra: string;
+
+            if (medidaMatch) {
+              qtyCompra = parseNumber(medidaMatch[1]);
+              unidCompra = medidaMatch[2].toLowerCase();
+            } else {
+              const plainNumber = parseNumber(medidaRaw);
+              if (plainNumber > 0) {
+                qtyCompra = plainNumber;
+                unidCompra = 'kg';
+              } else {
+                qtyCompra = 1;
+                unidCompra = medidaRaw.toLowerCase().replace(/[^a-z]/g, '') || 'kg';
+              }
+            }
+
+            if (colMapping.quantidade !== undefined && row[colMapping.quantidade]) {
+              const q = parseNumber(row[colMapping.quantidade]);
+              if (q > 0) qtyCompra = q;
+            }
+
+            if (unidCompra === 'litro' || unidCompra === 'litros') unidCompra = 'l';
+            if (unidCompra === 'quilo' || unidCompra === 'quilos') unidCompra = 'kg';
+            if (unidCompra === 'grama' || unidCompra === 'gramas') unidCompra = 'g';
+            if (unidCompra === 'unidade' || unidCompra === 'unidades') unidCompra = 'un';
+            if (!['kg', 'g', 'ml', 'l', 'un'].includes(unidCompra)) unidCompra = 'kg';
+
+            const isLiq = unidCompra === 'ml' || unidCompra === 'l' ||
+              (colMapping.liquido !== undefined && ['s', 'sim', 'y', 'yes'].includes(
+                (row[colMapping.liquido] || 'n').toString().toLowerCase().trim()
+              ));
+
+            const unidadeBase = deriveBase(unidCompra);
+            const volumeBase = converterParaBase(qtyCompra, unidCompra);
+            const precoUnitarioBase = volumeBase > 0 ? precoCompra / volumeBase : 0;
+
+            await createInsumo({
+              nome: nomeInsumo.toUpperCase(),
+              unidade_base: unidadeBase,
+              preco_compra: precoCompra,
+              quantidade_compra: qtyCompra,
+              unidade_compra: unidCompra,
+              preco_unitario_base: precoUnitarioBase,
+              is_liquid: isLiq,
+              acucares_adicionados_g: 0,
+              sodio_mg: 0,
+              gordura_saturada_g: 0,
+              alergenicos: []
+            });
+            successCount++;
+          } catch {
+            errorCount++;
+          }
+        }
+      }
+
+      showAlert(
+        'Importação Concluída',
+        `${successCount} insumos importados com sucesso.${errorCount > 0 ? ` ${errorCount} linhas ignoradas.` : ''}`
+      );
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err: any) {
       showAlert('Erro na Importação', err.message);
+    } finally {
       setIsImporting(false);
     }
   };
+
   const handleDeleteAll = async () => {
     const confirmed = await showConfirm(
       'EXCLUSÃO TOTAL',
