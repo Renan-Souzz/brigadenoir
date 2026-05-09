@@ -166,7 +166,7 @@ function AppContent() {
       return item.id === 'mod_ficha_tecnica';
     }
     if (!item.minRole) return true;
-    return profile?.role && item.minRole.includes(profile.role);
+    return (profile?.role && item.minRole.includes(profile.role)) || profile?.station === 'lideranca';
   });
 
   const filteredSecondaryItems = SECONDARY_MOBILE_ITEMS.filter(item => {
@@ -174,7 +174,7 @@ function AppContent() {
       return ['suporte', 'configuracoes'].includes(item.id);
     }
     if (!item.minRole) return true;
-    return profile?.role && item.minRole.includes(profile.role);
+    return (profile?.role && item.minRole.includes(profile.role)) || profile?.station === 'lideranca';
   });
 
   const isTabInSecondary = filteredSecondaryItems.some(i => i.id === activeTab);

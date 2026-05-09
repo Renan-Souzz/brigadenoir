@@ -5,6 +5,7 @@ import PageHeader from '../shared/PageHeader';
 import Button from '../shared/Button';
 import { useFTInsumos, FTInsumo } from '../../hooks/useFTInsumos';
 import { useModal } from '../../contexts/ModalContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { converterParaBase } from '../../utils/engineFT';
 
 const UNIDADES = [
@@ -28,6 +29,7 @@ function formatQty(qty: number, unit: string): string {
 }
 
 export default function InsumosTecnicos() {
+  const { canEditTechnical } = useAuth();
   const { insumos, isLoading, createInsumo, updateInsumo, deleteInsumo } = useFTInsumos();
   const { showConfirm, showAlert } = useModal();
   const [searchTerm, setSearchTerm] = useState('');
@@ -140,15 +142,17 @@ export default function InsumosTecnicos() {
             <span className="text-[10px] font-black uppercase tracking-widest text-primary block mb-2">Criticos ($)</span>
             <span className="text-4xl font-black text-primary leading-none">{stats.expensive}</span>
           </div>
-          <Button
-            variant="primary"
-            size="xl"
-            icon={<Plus size={24} />}
-            onClick={() => setIsFormOpen(true)}
-            className="shadow-2xl shadow-primary/30"
-          >
-            Novo Cadastro
-          </Button>
+          {canEditTechnical && (
+            <Button
+              variant="primary"
+              size="xl"
+              icon={<Plus size={24} />}
+              onClick={() => setIsFormOpen(true)}
+              className="shadow-2xl shadow-primary/30"
+            >
+              Novo Cadastro
+            </Button>
+          )}
         </div>
       </div>
 
@@ -191,12 +195,18 @@ export default function InsumosTecnicos() {
                 </td>
                 <td className="pr-12 py-6 text-right">
                   <div className="flex justify-end gap-2">
-                    <button onClick={() => handleEdit(i)} className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline-variant hover:text-primary hover:bg-primary/10 transition-all duration-300">
-                      <Edit2 size={20} />
-                    </button>
-                    <button onClick={() => handleDelete(i.id, i.nome)} className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline-variant hover:text-error hover:bg-error/10 transition-all duration-300">
-                      <Trash2 size={20} />
-                    </button>
+                    {canEditTechnical ? (
+                      <>
+                        <button onClick={() => handleEdit(i)} className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline-variant hover:text-primary hover:bg-primary/10 transition-all duration-300">
+                          <Edit2 size={20} />
+                        </button>
+                        <button onClick={() => handleDelete(i.id, i.nome)} className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline-variant hover:text-error hover:bg-error/10 transition-all duration-300">
+                          <Trash2 size={20} />
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-[9px] font-black uppercase text-outline-variant/40 py-4">Visualização</span>
+                    )}
                   </div>
                 </td>
               </tr>

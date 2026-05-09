@@ -4,8 +4,8 @@ import { Session, User } from '@supabase/supabase-js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type AppRole = 'admin' | 'chef_executivo' | 'chef_de_cuisine' | 'sous_chef' | 'chef_de_partie' | 'commis' | 'ficha_tecnica' | 'fichas';
-export type KitchenStation = 'saucier' | 'garde_manger' | 'entremetier' | 'rotisseur' | 'poissonier' | 'patissier';
+export type AppRole = 'admin' | 'chef_executivo' | 'chef_de_cuisine' | 'sous_chef' | 'chef_de_partie' | 'commis' | 'ficha_tecnica' | 'fichas' | 'editor_fichas';
+export type KitchenStation = 'saucier' | 'garde_manger' | 'entremetier' | 'rotisseur' | 'poissonier' | 'patissier' | 'lideranca' | 'almoxarifado';
 
 export interface Profile {
   id: string;
@@ -25,6 +25,7 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   isManagement: boolean;
+  canEditTechnical: boolean;
   isStationLead: boolean;
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
   signOut: () => Promise<void>;
@@ -44,8 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [requirePasswordChange, setRequirePasswordChange] = useState(false);
 
-  const isAdmin = !!profile?.role && ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'].includes(profile.role);
-  const isManagement = !!profile?.role && ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef', 'chef_de_partie'].includes(profile.role);
+  const isAdmin = !!profile?.role && (['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'].includes(profile.role) || profile.station === 'lideranca');
+  const isManagement = !!profile?.role && (['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef', 'chef_de_partie'].includes(profile.role) || profile.station === 'lideranca');
+  const canEditTechnical = isManagement || (!!profile?.role && ['ficha_tecnica', 'editor_fichas'].includes(profile.role));
   const isStationLead = profile?.role === 'chef_de_partie';
 
   useEffect(() => {
@@ -161,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     isAdmin,
     isManagement,
+    canEditTechnical,
     isStationLead,
     updateProfile,
     signOut,

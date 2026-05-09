@@ -34,7 +34,7 @@ import { useModal } from '../contexts/ModalContext';
 const CATEGORIAS = ['Entradas', 'Pratos Principais', 'Sobremesas', 'Bebidas', 'Bases & Molhos', 'Guarnições'];
 
 export default function Fichas() {
-  const { profile, isManagement } = useAuth();
+  const { profile, isManagement, canEditTechnical } = useAuth();
   const { data: modos = [], isLoading, upsertModoPreparo, deleteModoPreparo, refetch } = useModosPreparo();
   const { activeStations } = useStations();
   const { showAlert } = useModal();
@@ -153,7 +153,7 @@ export default function Fichas() {
     const filtered = modos.filter(m => {
       const matchesCategory = activeCategory ? m.categoria === activeCategory : true;
       const matchesSearch = searchTerm ? m.nome.toLowerCase().includes(searchTerm.toLowerCase()) : true;
-      const matchesUserStation = isManagement ? true : (m.pracas.length === 0 || m.pracas.includes(profile?.station || ''));
+      const matchesUserStation = canEditTechnical ? true : (m.pracas.length === 0 || m.pracas.includes(profile?.station || ''));
       return matchesCategory && matchesSearch && matchesUserStation;
     });
     return filtered.sort((a, b) => {
@@ -164,7 +164,7 @@ export default function Fichas() {
   }, [modos, activeCategory, searchTerm, isManagement, profile, sortBy]);
 
   const canCreate = isManagement || !!profile?.station;
-  const canEdit = (modo: ModoPreparo) => isManagement || (profile?.station && modo.pracas.includes(profile.station));
+  const canEdit = (modo: ModoPreparo) => canEditTechnical || (profile?.station && modo.pracas.includes(profile.station));
 
   return (
     <PageLayout maxWidth="7xl">

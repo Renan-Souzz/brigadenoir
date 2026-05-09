@@ -39,12 +39,12 @@ interface FichaEditorProps {
 }
 
 export default function FichaEditor({ fichaId, onClose }: FichaEditorProps) {
-  const { profile } = useAuth();
+  const { profile, canEditTechnical } = useAuth();
   const { getFicha, upsertFicha, deleteFicha, isLoading: isFichaLoading } = useFTFichas();
   const { insumos, isLoading: isInsumosLoading } = useFTInsumos();
   const { showAlert, showConfirm } = useModal();
 
-  const canEdit = !!profile?.role && ['admin', 'ficha_tecnica', 'chef_executivo', 'fichas'].includes(profile.role);
+  const canEdit = canEditTechnical;
 
   // Root States
   const [nome, setNome] = useState('');

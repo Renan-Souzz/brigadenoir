@@ -36,7 +36,8 @@ const ROLE_LABELS: Record<AppRole, string> = {
   chef_de_partie: 'Chefe de Partida',
   commis: 'Commis / Cozinheiro',
   ficha_tecnica: 'Gestor de Custos',
-  fichas: 'Acesso Fichas'
+  fichas: 'Acesso Fichas',
+  editor_fichas: 'Editor de Fichas'
 };
 
 

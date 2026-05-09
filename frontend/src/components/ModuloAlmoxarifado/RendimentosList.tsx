@@ -19,10 +19,8 @@ import {
 export default function RendimentosList() {
   const { data: rendimentos = [], isLoading, deleteRendimento, upsertRendimento, isUpdating } = useInsumoRendimentos();
   const { createInsumo } = useInsumos('almoxarifado');
-  const { profile } = useAuth();
+  const { profile, isManagement } = useAuth();
   const { showAlert, showConfirm } = useModal();
-
-  const isManagement = profile?.role ? ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef'].includes(profile.role) : false;
 
   const [isCreating, setIsCreating] = useState(false);
   const [nomeProduto, setNomeProduto] = useState('');

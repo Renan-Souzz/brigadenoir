@@ -46,6 +46,7 @@ const ROLE_LABELS: Record<string, string> = {
   commis: 'Commis',
   ficha_tecnica: 'Gestor de Custos',
   fichas: 'Acesso Fichas',
+  editor_fichas: 'Editor de Fichas',
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
 
   const filteredItems = MENU_ITEMS.filter(item => {
     if (!item.minRole) return true;
-    return profile?.role && item.minRole.includes(profile.role);
+    return (profile?.role && item.minRole.includes(profile.role)) || profile?.station === 'lideranca';
   });
 
   return (

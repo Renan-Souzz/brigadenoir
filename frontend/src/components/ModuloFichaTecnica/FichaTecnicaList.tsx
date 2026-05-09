@@ -29,7 +29,7 @@ import { calcularResumoFicha, verificarAlertasAnvisa, detectarAlergenos } from '
 const CATEGORIAS = ['Entrada', 'Prato Principal', 'Sobremesa', 'Bebida', 'Base / Molho'];
 
 export default function FichaTecnicaList() {
-  const { profile } = useAuth();
+  const { profile, canEditTechnical } = useAuth();
   const { fichas, isLoading, deleteFicha } = useFTFichas();
   const { showConfirm, showAlert } = useModal();
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,7 +37,7 @@ export default function FichaTecnicaList() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  const canEdit = !!profile?.role && ['admin', 'ficha_tecnica', 'chef_executivo', 'fichas'].includes(profile.role);
+  const canEdit = canEditTechnical;
 
   // 1. Helpers for Calculations in List
   const calculateFichaFinance = (ficha: FTFicha) => {

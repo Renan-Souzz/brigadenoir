@@ -34,7 +34,7 @@ export const NotificationService = {
       const { data: leaders } = await supabase
         .from('profiles')
         .select('id')
-        .in('role', ['admin', 'chef_executivo', 'chef_de_cuisine', 'sous_chef']);
+        .or(`role.in.("admin","chef_executivo","chef_de_cuisine","sous_chef"),station.eq.lideranca`);
 
       if (leaders && leaders.length > 0) {
         const notifications = leaders.map(l => ({

@@ -94,7 +94,7 @@ const DishImage = ({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function MenuPrincipal() {
-  const { profile, isManagement } = useAuth();
+  const { profile, isManagement, canEditTechnical } = useAuth();
   const { showConfirm, showAlert } = useModal();
   const { activeTab, setActiveTab, searchFilter, setSearchFilter } = useNavigation();
   const { 
@@ -291,7 +291,10 @@ export default function MenuPrincipal() {
     const matchesSearch = !isSearching || d.title.toLowerCase().includes(searchTerm.toLowerCase());
     if (!matchesSearch) return false;
     if (activeCategory) return d.category === activeCategory;
-    if (isManagement) return d.porcoes < 3; 
+    
+    // Technical editors can see everything to manage the menu, 
+    // but regular staff only see their station's dishes.
+    if (canEditTechnical) return true;
     return profile?.station === d.praca_responsavel;
   });
 
@@ -335,7 +338,7 @@ export default function MenuPrincipal() {
             <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-outline-variant flex items-center gap-2">
               <BookOpen size={14} className="text-secondary" /> Categorias
             </h3>
-            {isManagement && <Button variant="primary" onClick={() => openModal()} size="sm" icon={<Sparkles size={16} className="text-secondary" />}>Criar Prato</Button>}
+            {canEditTechnical && <Button variant="primary" onClick={() => openModal()} size="sm" icon={<Sparkles size={16} className="text-secondary" />}>Criar Prato</Button>}
           </div>
 
           {CATEGORIAS.map(cat => {
@@ -358,7 +361,7 @@ export default function MenuPrincipal() {
             );
           })}
 
-          {isManagement && (
+          {canEditTechnical && (
             <button onClick={() => openModal()} className="hidden lg:block group w-full relative p-[1px] rounded-2xl active:scale-95 transition-all duration-300 overflow-hidden">
                <span className="absolute inset-0 bg-gradient-to-br from-primary via-secondary to-primary opacity-40 group-hover:opacity-100 blur-[1px]"></span>
                <div className="relative flex items-center gap-4 p-5 md:p-6 rounded-[15px] text-left h-full w-full bg-surface-container group-hover:bg-surface-container-highest">
@@ -470,7 +473,7 @@ export default function MenuPrincipal() {
                               ) : (
                                 <button onClick={() => { setEditingPorcao(dish.id); setTempPorcao(dish.porcoes); }} className="px-3 py-1.5 bg-surface-container-highest border border-outline-variant/10 rounded-lg text-[9px] font-black uppercase text-on-surface-variant hover:text-primary">Porções</button>
                               ))}
-                              {isManagement && (
+                              {canEditTechnical && (
                                 <>
                                   <button onClick={() => openModal(dish)} className="w-8 h-8 rounded-lg flex items-center justify-center text-outline-variant hover:text-primary border border-outline-variant/10"><Edit2 size={12} /></button>
                                   <button onClick={() => handleDelete(dish.id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-outline-variant hover:text-red-400 border border-outline-variant/10"><Trash2 size={12} /></button>
