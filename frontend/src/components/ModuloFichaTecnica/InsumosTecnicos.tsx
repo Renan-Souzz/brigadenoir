@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, Search, Trash2, Edit2, Droplets, FileSpreadsheet, Upload, Loader2, Database } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import PageLayout from '../shared/PageLayout';
@@ -468,11 +469,11 @@ export default function InsumosTecnicos() {
         )}
       </div>
 
-      {/* ── Modal de Cadastro Simplificado ── */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => { setIsFormOpen(false); resetForm(); }} />
-          <div className="relative bg-surface-container/60 backdrop-blur-3xl w-full max-w-xl rounded-[40px] border border-outline-variant/20 shadow-[0_0_100px_-20px_rgba(0,0,0,0.8)] overflow-hidden animate-in zoom-in-95 fade-in duration-300">
+      {/* ── Modal de Cadastro Simplificado (Portal) ── */}
+      {isFormOpen && createPortal(
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 overflow-y-auto overflow-x-hidden">
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-xl" onClick={() => { setIsFormOpen(false); resetForm(); }} />
+          <div className="relative bg-surface-container/60 backdrop-blur-3xl w-full max-w-xl rounded-[40px] border border-outline-variant/20 shadow-[0_0_100px_-20px_rgba(0,0,0,0.8)] overflow-hidden animate-in zoom-in-95 fade-in duration-300 my-auto">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-secondary to-primary" />
 
             <div className="p-10 lg:p-12">
@@ -610,7 +611,8 @@ export default function InsumosTecnicos() {
               </form>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </PageLayout>
   );
