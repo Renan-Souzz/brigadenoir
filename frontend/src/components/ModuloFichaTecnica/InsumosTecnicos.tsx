@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Trash2, Edit2, Droplets } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Droplets, FileSpreadsheet, Upload, Loader2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import PageLayout from '../shared/PageLayout';
 import PageHeader from '../shared/PageHeader';
 import Button from '../shared/Button';
@@ -42,6 +43,9 @@ export default function InsumosTecnicos() {
   const [quantidade, setQuantidade] = useState('');
   const [unidade, setUnidade] = useState('kg');
   const [isLiquid, setIsLiquid] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const filteredInsumos = insumos.filter(i =>
     i.nome.toLowerCase().includes(searchTerm.toLowerCase())
@@ -114,6 +118,110 @@ export default function InsumosTecnicos() {
     if (confirmed) await deleteInsumo(id);
   };
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const row of data as any[]) {
+          try {
+            // Suporta múltiplos formatos de cabeçalho:
+            // Formato do usuário: ingrediente | medida | custo
+            // Formato padrão:    Nome | Unidade | Preço | Quantidade
+            const nomeInsumo = (
+              row.ingrediente || row.Ingrediente || row.INGREDIENTE ||
+              row.Nome || row.nome || row.NOME || ''
+            ).toString().trim();
+            if (!nomeInsumo) continue;
+
+            // Custo: aceita "custo", "Custo", "Preço", "preco", etc.
+            const custoRaw = (
+              row.custo ?? row.Custo ?? row.CUSTO ??
+              row.Preco ?? row.preco ?? row['Preço'] ?? row['Preço Compra'] ?? 0
+            );
+            // Trata valores com vírgula como separador decimal (ex: "12,50" → 12.50)
+            const precoCompra = parseFloat(custoRaw.toString().replace(',', '.')) || 0;
+
+            // Medida: pode ser apenas a unidade ("kg") ou incluir quantidade ("1 kg", "500 g")
+            const medidaRaw = (
+              row.medida || row.Medida || row.MEDIDA ||
+              row.Unidade || row.unidade || 'kg'
+            ).toString().trim();
+
+            // Extrai quantidade e unidade do campo "medida" (ex: "1 KG" → qty=1, unit=kg)
+            const medidaMatch = medidaRaw.match(/^(\d+[\.,]?\d*)\s*(kg|g|ml|l|un|litro|litros|quilo|quilos|grama|gramas|unidade|unidades)$/i);
+            let qtyCompra: number;
+            let unidCompra: string;
+
+            if (medidaMatch) {
+              qtyCompra = parseFloat(medidaMatch[1].replace(',', '.')) || 1;
+              unidCompra = medidaMatch[2].toLowerCase();
+            } else {
+              // Se o campo é apenas a unidade, a quantidade vem de coluna separada ou default 1
+              qtyCompra = parseFloat(row.Quantidade || row.quantidade || row.Qtde || 1);
+              unidCompra = medidaRaw.toLowerCase().replace(/[^a-z]/g, '');
+            }
+
+            // Normaliza nomes longos de unidade
+            if (unidCompra === 'litro' || unidCompra === 'litros') unidCompra = 'l';
+            if (unidCompra === 'quilo' || unidCompra === 'quilos') unidCompra = 'kg';
+            if (unidCompra === 'grama' || unidCompra === 'gramas') unidCompra = 'g';
+            if (unidCompra === 'unidade' || unidCompra === 'unidades') unidCompra = 'un';
+            if (!['kg', 'g', 'ml', 'l', 'un'].includes(unidCompra)) unidCompra = 'kg';
+
+            const liquidVal = (row.Liquido || row.liquido || row['Líquido'] || 'N').toString().toUpperCase().trim();
+            const isLiq = liquidVal === 'S' || liquidVal === 'SIM' || liquidVal === 'Y' || liquidVal === 'YES' || unidCompra === 'ml' || unidCompra === 'l';
+
+            const unidadeBase = deriveBase(unidCompra);
+            const volumeBase = converterParaBase(qtyCompra, unidCompra);
+            const precoUnitarioBase = volumeBase > 0 ? precoCompra / volumeBase : 0;
+
+            await createInsumo({
+              nome: nomeInsumo.toUpperCase(),
+              unidade_base: unidadeBase,
+              preco_compra: precoCompra,
+              quantidade_compra: qtyCompra,
+              unidade_compra: unidCompra,
+              preco_unitario_base: precoUnitarioBase,
+              is_liquid: isLiq,
+              acucares_adicionados_g: 0,
+              sodio_mg: 0,
+              gordura_saturada_g: 0,
+              alergenicos: []
+            });
+            successCount++;
+          } catch (err) {
+            errorCount++;
+          }
+        }
+
+        showAlert('Importação Concluída', `${successCount} insumos importados com sucesso.${errorCount > 0 ? ` ${errorCount} falhas.` : ''}`);
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      };
+      reader.readAsBinaryString(file);
+    } catch (err: any) {
+      showAlert('Erro na Importação', err.message);
+      setIsImporting(false);
+    }
+  };
+
   return (
     <PageLayout maxWidth="full">
       <PageHeader
@@ -143,15 +251,34 @@ export default function InsumosTecnicos() {
             <span className="text-4xl font-black text-primary leading-none">{stats.expensive}</span>
           </div>
           {canEditTechnical && (
-            <Button
-              variant="primary"
-              size="xl"
-              icon={<Plus size={24} />}
-              onClick={() => setIsFormOpen(true)}
-              className="shadow-2xl shadow-primary/30"
-            >
-              Novo Cadastro
-            </Button>
+            <div className="flex gap-4">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".csv, .xlsx, .xls"
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                size="xl"
+                icon={isImporting ? <Loader2 size={24} className="animate-spin" /> : <Upload size={24} />}
+                onClick={handleImportClick}
+                disabled={isImporting}
+                className="border-primary/20 text-primary hover:bg-primary/5"
+              >
+                {isImporting ? 'Importando...' : 'Importar CSV'}
+              </Button>
+              <Button
+                variant="primary"
+                size="xl"
+                icon={<Plus size={24} />}
+                onClick={() => setIsFormOpen(true)}
+                className="shadow-2xl shadow-primary/30"
+              >
+                Novo Cadastro
+              </Button>
+            </div>
           )}
         </div>
       </div>
