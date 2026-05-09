@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Trash2, Edit2, Droplets, FileSpreadsheet, Upload, Loader2 } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Droplets, FileSpreadsheet, Upload, Loader2, Database } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import PageLayout from '../shared/PageLayout';
 import PageHeader from '../shared/PageHeader';
@@ -258,6 +258,16 @@ export default function InsumosTecnicos() {
       setIsImporting(false);
     }
   };
+  const handleDeleteAll = async () => {
+    if (confirm('Tem certeza que deseja excluir TODOS os insumos técnicos? Esta ação não pode ser desfeita.')) {
+      try {
+        await deleteAllInsumos();
+        showAlert('Sucesso', 'Todos os insumos foram excluídos.');
+      } catch (err: any) {
+        showAlert('Erro', 'Falha ao excluir insumos: ' + err.message);
+      }
+    }
+  };
 
   return (
     <PageLayout maxWidth="full">
@@ -296,6 +306,17 @@ export default function InsumosTecnicos() {
                 accept=".csv, .xlsx, .xls"
                 className="hidden"
               />
+              {insumos.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="xl"
+                  icon={<Trash2 size={24} />}
+                  onClick={handleDeleteAll}
+                  className="border-error/20 text-error hover:bg-error/5"
+                >
+                  Excluir Todos
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="xl"
