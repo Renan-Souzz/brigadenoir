@@ -131,18 +131,36 @@ export default function InsumosTecnicos() {
         const data = evt.target?.result;
         if (!data) return;
 
-        const wb = XLSX.read(data, { type: 'array' });
+        // bookVBA:false evita parsing de macros, raw:false preserva formatação de células
+        const wb = XLSX.read(data, { type: 'array', bookVBA: false, cellText: true, cellNF: true });
         
         let successCount = 0;
         let errorCount = 0;
 
+        // Lê o valor formatado (texto) da célula em vez do valor bruto numérico
+        // Isso preserva separadores decimais brasileiros (vírgula) como o usuário digitou
+        const getCellText = (ws: any, row: number, col: number): string => {
+          const cellAddr = XLSX.utils.encode_cell({ r: row, c: col });
+          const cell = ws[cellAddr];
+          if (!cell) return '';
+          // Preferência: texto formatado > valor bruto
+          if (cell.w) return cell.w; // w = formatted text (ex: "7,90")
+          if (cell.v !== undefined) return cell.v.toString();
+          return '';
+        };
+
         const parseNumber = (val: any): number => {
+          if (!val && val !== 0) return 0;
           if (typeof val === 'number') return val;
-          if (!val) return 0;
-          const s = val.toString().trim();
+          const s = val.toString().trim()
+            // Remove símbolos de moeda e espaços
+            .replace(/R\$\s*/g, '')
+            .replace(/\s/g, '');
+          // Formato BR com milhar: 1.234,56
           if (s.includes(',') && s.includes('.')) {
             return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
           }
+          // Só vírgula decimal: 7,90
           if (s.includes(',')) {
             return parseFloat(s.replace(',', '.')) || 0;
           }
@@ -151,13 +169,14 @@ export default function InsumosTecnicos() {
 
         for (const sheetName of wb.SheetNames) {
           const ws = wb.Sheets[sheetName];
-          const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+          // Lê como array de arrays usando o texto formatado das células (cell.w)
+          const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false }) as string[][];
           
           let headerRowIndex = -1;
           let colMapping: Record<string, number> = {};
 
-          for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
+          for (let i = 0; i < rawRows.length; i++) {
+            const row = rawRows[i];
             if (!row || !Array.isArray(row)) continue;
             
             const normalizedRow = row.map(cell => 
@@ -181,14 +200,16 @@ export default function InsumosTecnicos() {
 
           if (headerRowIndex === -1 || colMapping.nome === undefined) continue;
 
-          for (let i = headerRowIndex + 1; i < rows.length; i++) {
-            const row = rows[i];
+          for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
+            const row = rawRows[i];
             try {
               const nomeRaw = row[colMapping.nome];
               if (!nomeRaw) continue;
 
               const nomeInsumo = nomeRaw.toString().trim();
-              const precoCompra = parseNumber(row[colMapping.custo]);
+              // Usa getCellText para pegar o valor formatado da célula de custo (ex: "7,90" em vez de 790)
+              const custoText = getCellText(ws, i, colMapping.custo ?? -1);
+              const precoCompra = parseNumber(custoText || row[colMapping.custo]);
 
               const medidaRaw = (row[colMapping.medida] ?? 'kg').toString().trim();
               
