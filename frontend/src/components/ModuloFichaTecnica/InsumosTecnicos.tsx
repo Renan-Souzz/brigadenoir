@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Search, Trash2, Edit2, Droplets, FileSpreadsheet, Upload, Loader2, Database } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import PageLayout from '../shared/PageLayout';
@@ -46,6 +46,18 @@ export default function InsumosTecnicos() {
   const [isImporting, setIsImporting] = useState(false);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Scroll lock effect when modal is open
+  useEffect(() => {
+    if (isFormOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isFormOpen]);
 
   const filteredInsumos = insumos.filter(i =>
     i.nome.toLowerCase().includes(searchTerm.toLowerCase())
@@ -458,7 +470,7 @@ export default function InsumosTecnicos() {
 
       {/* ── Modal de Cadastro Simplificado ── */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
           <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => { setIsFormOpen(false); resetForm(); }} />
           <div className="relative bg-surface-container/60 backdrop-blur-3xl w-full max-w-xl rounded-[40px] border border-outline-variant/20 shadow-[0_0_100px_-20px_rgba(0,0,0,0.8)] overflow-hidden animate-in zoom-in-95 fade-in duration-300">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-secondary to-primary" />
