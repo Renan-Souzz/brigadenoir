@@ -31,7 +31,7 @@ function formatQty(qty: number, unit: string): string {
 
 export default function InsumosTecnicos() {
   const { canEditTechnical } = useAuth();
-  const { insumos, isLoading, createInsumo, updateInsumo, deleteInsumo } = useFTInsumos();
+  const { insumos, isLoading, createInsumo, updateInsumo, deleteInsumo, deleteAllInsumos } = useFTInsumos();
   const { showConfirm, showAlert } = useModal();
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);

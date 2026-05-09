@@ -114,12 +114,24 @@ export function useFTInsumos() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ft_insumos'] })
   });
 
+  const deleteAllInsumos = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('ft_insumos')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ft_insumos'] })
+  });
+
   return {
     insumos,
     isLoading,
     refetch,
     createInsumo: createInsumo.mutateAsync,
     updateInsumo: updateInsumo.mutateAsync,
-    deleteInsumo: deleteInsumo.mutateAsync
+    deleteInsumo: deleteInsumo.mutateAsync,
+    deleteAllInsumos: deleteAllInsumos.mutateAsync
   };
 }
