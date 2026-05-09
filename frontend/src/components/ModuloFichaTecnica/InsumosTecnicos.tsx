@@ -120,9 +120,7 @@ export default function InsumosTecnicos() {
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  };  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -130,22 +128,34 @@ export default function InsumosTecnicos() {
     try {
       const reader = new FileReader();
       reader.onload = async (evt) => {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const data = evt.target?.result;
+        if (!data) return;
+
+        const wb = XLSX.read(data, { type: 'array' });
         
         let successCount = 0;
         let errorCount = 0;
 
-        // Itera por TODAS as abas da planilha
+        const parseNumber = (val: any): number => {
+          if (typeof val === 'number') return val;
+          if (!val) return 0;
+          const s = val.toString().trim();
+          if (s.includes(',') && s.includes('.')) {
+            return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+          }
+          if (s.includes(',')) {
+            return parseFloat(s.replace(',', '.')) || 0;
+          }
+          return parseFloat(s) || 0;
+        };
+
         for (const sheetName of wb.SheetNames) {
           const ws = wb.Sheets[sheetName];
-          // Converte para matriz (array de arrays) para achar o cabeçalho dinamicamente
           const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
           
           let headerRowIndex = -1;
           let colMapping: Record<string, number> = {};
 
-          // Busca a linha que contém os cabeçalhos (procurando por "ingrediente")
           for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
             if (!row || !Array.isArray(row)) continue;
@@ -158,7 +168,6 @@ export default function InsumosTecnicos() {
 
             if (normalizedRow.includes('ingrediente')) {
               headerRowIndex = i;
-              // Mapeia qual coluna é cada coisa
               normalizedRow.forEach((val, idx) => {
                 if (val === 'ingrediente' || val === 'item' || val === 'nome') colMapping.nome = idx;
                 if (val === 'medida' || val === 'unidade' || val === 'und') colMapping.medida = idx;
@@ -170,10 +179,8 @@ export default function InsumosTecnicos() {
             }
           }
 
-          // Se não achou cabeçalho nesta aba, pula para a próxima
           if (headerRowIndex === -1 || colMapping.nome === undefined) continue;
 
-          // Processa as linhas de dados (abaixo do cabeçalho)
           for (let i = headerRowIndex + 1; i < rows.length; i++) {
             const row = rows[i];
             try {
@@ -181,25 +188,21 @@ export default function InsumosTecnicos() {
               if (!nomeRaw) continue;
 
               const nomeInsumo = nomeRaw.toString().trim();
-              const custoRaw = row[colMapping.custo] ?? 0;
-              const precoCompra = typeof custoRaw === 'number' ? custoRaw : parseFloat(custoRaw.toString().replace(',', '.')) || 0;
+              const precoCompra = parseNumber(row[colMapping.custo]);
 
               const medidaRaw = (row[colMapping.medida] ?? 'kg').toString().trim();
               
-              // Tenta extrair quantidade e unidade do campo "medida"
               const medidaMatch = medidaRaw.match(/^(\d+[\.,]?\d*)\s*(kg|g|ml|l|un|litro|litros|quilo|quilos|grama|gramas|unidade|unidades)$/i);
               let qtyCompra: number;
               let unidCompra: string;
 
               if (medidaMatch) {
-                qtyCompra = parseFloat(medidaMatch[1].replace(',', '.')) || 1;
+                qtyCompra = parseNumber(medidaMatch[1]);
                 unidCompra = medidaMatch[2].toLowerCase();
               } else {
-                // Se o campo for apenas um número (ex: 0,05)
-                const plainNumber = parseFloat(medidaRaw.replace(',', '.'));
-                if (!isNaN(plainNumber)) {
+                const plainNumber = parseNumber(medidaRaw);
+                if (plainNumber > 0) {
                   qtyCompra = plainNumber;
-                  // Tenta pegar unidade de outra coluna ou assume kg/un
                   unidCompra = 'kg'; 
                 } else {
                   qtyCompra = 1;
@@ -207,13 +210,11 @@ export default function InsumosTecnicos() {
                 }
               }
 
-              // Se houver coluna de quantidade explícita, ela manda
               if (colMapping.quantidade !== undefined && row[colMapping.quantidade]) {
-                const q = parseFloat(row[colMapping.quantidade].toString().replace(',', '.'));
-                if (!isNaN(q)) qtyCompra = q;
+                const q = parseNumber(row[colMapping.quantidade]);
+                if (q > 0) qtyCompra = q;
               }
 
-              // Normaliza unidades
               if (unidCompra === 'litro' || unidCompra === 'litros') unidCompra = 'l';
               if (unidCompra === 'quilo' || unidCompra === 'quilos') unidCompra = 'kg';
               if (unidCompra === 'grama' || unidCompra === 'gramas') unidCompra = 'g';
@@ -251,7 +252,7 @@ export default function InsumosTecnicos() {
         setIsImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
       };
-      reader.readAsBinaryString(file);
+      reader.readAsArrayBuffer(file);
     } catch (err: any) {
       showAlert('Erro na Importação', err.message);
       setIsImporting(false);
