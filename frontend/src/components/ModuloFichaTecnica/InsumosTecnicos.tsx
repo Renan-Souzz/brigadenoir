@@ -139,29 +139,34 @@ export default function InsumosTecnicos() {
         let successCount = 0;
         let errorCount = 0;
 
-        for (const row of data as any[]) {
+        for (const rawRow of data as any[]) {
           try {
-            // Suporta múltiplos formatos de cabeçalho:
-            // Formato do usuário: ingrediente | medida | custo
-            // Formato padrão:    Nome | Unidade | Preço | Quantidade
+            // Normaliza TODAS as chaves: remove acentos, lowercase, trim
+            const row: Record<string, any> = {};
+            for (const [key, val] of Object.entries(rawRow)) {
+              const normalizedKey = key
+                .toLowerCase()
+                .trim()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+                .replace(/[^a-z0-9]/g, ''); // remove espaços e caracteres especiais
+              row[normalizedKey] = val;
+            }
+
+            // Nome do insumo: ingrediente | nome
             const nomeInsumo = (
-              row.ingrediente || row.Ingrediente || row.INGREDIENTE ||
-              row.Nome || row.nome || row.NOME || ''
+              row.ingrediente || row.nome || row.insumo || row.produto || row.item || ''
             ).toString().trim();
             if (!nomeInsumo) continue;
 
-            // Custo: aceita "custo", "Custo", "Preço", "preco", etc.
+            // Custo: custo | preco | precocompra | valor
             const custoRaw = (
-              row.custo ?? row.Custo ?? row.CUSTO ??
-              row.Preco ?? row.preco ?? row['Preço'] ?? row['Preço Compra'] ?? 0
+              row.custo ?? row.preco ?? row.precocompra ?? row.valor ?? row.price ?? 0
             );
-            // Trata valores com vírgula como separador decimal (ex: "12,50" → 12.50)
             const precoCompra = parseFloat(custoRaw.toString().replace(',', '.')) || 0;
 
-            // Medida: pode ser apenas a unidade ("kg") ou incluir quantidade ("1 kg", "500 g")
+            // Medida: medida | unidade | und | un
             const medidaRaw = (
-              row.medida || row.Medida || row.MEDIDA ||
-              row.Unidade || row.unidade || 'kg'
+              row.medida || row.unidade || row.und || row.un || row.unit || 'kg'
             ).toString().trim();
 
             // Extrai quantidade e unidade do campo "medida" (ex: "1 KG" → qty=1, unit=kg)
@@ -173,8 +178,7 @@ export default function InsumosTecnicos() {
               qtyCompra = parseFloat(medidaMatch[1].replace(',', '.')) || 1;
               unidCompra = medidaMatch[2].toLowerCase();
             } else {
-              // Se o campo é apenas a unidade, a quantidade vem de coluna separada ou default 1
-              qtyCompra = parseFloat(row.Quantidade || row.quantidade || row.Qtde || 1);
+              qtyCompra = parseFloat(row.quantidade || row.qtde || row.qty || 1);
               unidCompra = medidaRaw.toLowerCase().replace(/[^a-z]/g, '');
             }
 
@@ -185,8 +189,8 @@ export default function InsumosTecnicos() {
             if (unidCompra === 'unidade' || unidCompra === 'unidades') unidCompra = 'un';
             if (!['kg', 'g', 'ml', 'l', 'un'].includes(unidCompra)) unidCompra = 'kg';
 
-            const liquidVal = (row.Liquido || row.liquido || row['Líquido'] || 'N').toString().toUpperCase().trim();
-            const isLiq = liquidVal === 'S' || liquidVal === 'SIM' || liquidVal === 'Y' || liquidVal === 'YES' || unidCompra === 'ml' || unidCompra === 'l';
+            const isLiq = unidCompra === 'ml' || unidCompra === 'l' ||
+              ['s', 'sim', 'y', 'yes'].includes((row.liquido || 'n').toString().toLowerCase().trim());
 
             const unidadeBase = deriveBase(unidCompra);
             const volumeBase = converterParaBase(qtyCompra, unidCompra);
@@ -208,6 +212,7 @@ export default function InsumosTecnicos() {
             successCount++;
           } catch (err) {
             errorCount++;
+
           }
         }
 
